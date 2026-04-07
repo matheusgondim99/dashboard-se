@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/kommo", "destination": "/api/kommo" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

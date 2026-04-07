@@ -1078,18 +1078,20 @@ async function connectKommo() {
 
   document.getElementById('kommoError').classList.remove('show');
 
-  try {
-    // Fetch leads from Kommo API
-    const baseUrl = `https://${subdomain}.kommo.com/api/v4`;
-    const headers = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+  // Use /api/kommo proxy to avoid CORS
+  async function kommoFetch(path, extraParams = {}) {
+    const params = new URLSearchParams({ subdomain, token, path, ...extraParams });
+    const resp = await fetch(`/api/kommo?${params}`);
+    if (!resp.ok) throw new Error('API error: ' + resp.status);
+    return resp.json();
+  }
 
+  try {
     // Get all leads with tag "F - SE"
     let page = 1;
     let allLeads = [];
     while (true) {
-      const resp = await fetch(`${baseUrl}/leads?limit=250&page=${page}&with=contacts,tags`, { headers });
-      if (!resp.ok) throw new Error('API error: ' + resp.status);
-      const data = await resp.json();
+      const data = await kommoFetch('leads', { limit: 250, page, 'with': 'contacts,tags' });
       const items = data?._embedded?.leads || [];
       if (!items.length) break;
 
@@ -1106,8 +1108,7 @@ async function connectKommo() {
     // Fetch pipeline stages
     let stagesMap = {};
     try {
-      const pipResp = await fetch(`${baseUrl}/leads/pipelines`, { headers });
-      const pipData = await pipResp.json();
+      const pipData = await kommoFetch('leads/pipelines');
       const pips = pipData?._embedded?.pipelines || [];
       pips.forEach(pip => {
         (pip._embedded?.statuses||[]).forEach(s => {
@@ -1132,38 +1133,38 @@ async function connectKommo() {
       return stageAliases[lower] || name || 'Em contato inicial';
     }
 
-    // Parse leads into our format
-    STATE.kommo = await Promise.all(allLeads.map(async lead => {
-      const contact = lead._embedded?.contacts?.[0] || {};
-      let contactData = {};
+    // Parse leads — fetch contacts in batches to avoid rate limits
+    const contactIds = [...new Set(allLeads.flatMap(l => (l._embedded?.contacts||[]).map(c=>c.id)).filter(Boolean))];
+    const contactsMap = {};
+    for (let i = 0; i < contactIds.length; i += 50) {
       try {
-        const cr = await fetch(`${baseUrl}/contacts/${contact.id}`, { headers });
-        const cd = await cr.json();
-        contactData = cd || {};
+        const batch = contactIds.slice(i, i+50);
+        const cd = await kommoFetch('contacts', { 'filter[id]': batch.join(',') });
+        (cd?._embedded?.contacts||[]).forEach(c => { contactsMap[c.id] = c; });
       } catch(e) {}
+    }
 
+    STATE.kommo = allLeads.map(lead => {
+      const contactRef = lead._embedded?.contacts?.[0] || {};
+      const contactData = contactsMap[contactRef.id] || {};
       const fields = (contactData.custom_fields_values||[]);
-      const getField = (name) => {
+      const getField = name => {
         const f = fields.find(f=>f.field_name?.toLowerCase().includes(name.toLowerCase()));
         return f?.values?.[0]?.value || '';
       };
-
-      const stageId = lead.status_id;
-      const stageName = stagesMap[stageId] || '';
-      const mappedStage = mapStage(stageName);
-
       const leadFields = (lead.custom_fields_values||[]);
       const getLeadField = name => {
         const f = leadFields.find(f=>f.field_name?.toLowerCase().includes(name.toLowerCase()));
         return f?.values?.[0]?.value || '';
       };
 
+      const stageName = stagesMap[lead.status_id] || '';
       return {
         id: lead.id,
         name: lead.name || contactData.name || '—',
         phone: getField('telefone') || getField('phone') || '',
         instagram: getField('instagram') || '',
-        stage: mappedStage,
+        stage: mapStage(stageName),
         mrr: getLeadField('mrr') || lead.price || '',
         situacao: getLeadField('situação') || getLeadField('situacao') || '',
         sql: getLeadField('sql') || '',
@@ -1172,7 +1173,7 @@ async function connectKommo() {
         entry_date: lead.created_at ? new Date(lead.created_at*1000).toLocaleDateString('pt-BR') : '',
         stage_date: lead.updated_at ? new Date(lead.updated_at*1000).toLocaleDateString('pt-BR') : '',
       };
-    }));
+    });
 
     STATE.kommoToken = token;
     STATE.kommoSubdomain = subdomain;
