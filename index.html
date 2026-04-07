@@ -578,7 +578,9 @@ function renderPage1() {
   // Planning for current period
   const plan = getPlanningAgg();
 
-  const realLeads = ta.leads_traf || la.total;
+  // Leads: use Kommo total as primary, fallback to traffic/sheets data
+  const kommoTotal = getKommoLeadsTotal();
+  const realLeads = kommoTotal > 0 ? kommoTotal : (ta.leads_traf || la.total);
   const realR1m = countKommoStage('R1 Marcada');
   const realR1r = countKommoStage('R1 Realizada');
   const realR2m = countKommoStage('R2 Marcada');
@@ -656,8 +658,9 @@ function renderPage2() {
   const la = aggregateLeads(leads);
   const plan = getPlanningAgg();
 
-  const realLeads = ta.leads_traf || la.total;
-  const realR1m = countKommoStage('R1 Marcada') + countKommoStage('R1 Realizada');
+  const kommoTotal2 = getKommoLeadsTotal();
+  const realLeads = kommoTotal2 > 0 ? kommoTotal2 : (ta.leads_traf || la.total);
+  const realR1m = countKommoStage('R1 Marcada');
   const realR1r = countKommoStage('R1 Realizada');
   const realR2r = countKommoStage('R2 Realizada');
   const realVendas = countKommoStage('Venda');
@@ -912,7 +915,8 @@ function renderPage5() {
   const ta = aggregateTraffic(tr);
   const la = aggregateLeads(leads);
   const plan = getPlanningAgg();
-  const realLeads = ta.leads_traf || la.total;
+  const kommoTotal5 = getKommoLeadsTotal();
+  const realLeads = kommoTotal5 > 0 ? kommoTotal5 : (ta.leads_traf || la.total);
   const realVendas = countKommoStage('Venda');
   const inv = ta.investimento;
 
@@ -1059,13 +1063,40 @@ function getPlanningAgg() {
 // =============================================
 // KOMMO
 // =============================================
+// Funnel stage order for cumulative counting
+const STAGE_ORDER = [
+  'Em contato inicial','Em Atendimento','Grupo Imersão',
+  'R1 Marcada','R1 Realizada','R2 Marcada','R2 Realizada',
+  'Negociação','Venda'
+];
+
+// Cumulative: counts leads at OR past a stage (a lead in Venda also counts for R1, R2 etc)
 function countKommoStage(stage) {
+  const stageIndex = STAGE_ORDER.indexOf(stage);
+  if (stageIndex === -1) return STATE.kommo.filter(l => l.stage === stage).length;
+  return STATE.kommo.filter(l => {
+    const leadIndex = STAGE_ORDER.indexOf(l.stage);
+    return leadIndex >= stageIndex;
+  }).length;
+}
+
+// Exact count — only leads currently at that stage (for funnel cards)
+function countKommoStageExact(stage) {
   return STATE.kommo.filter(l => l.stage === stage).length;
 }
+
 function getMRRTotal() {
-  return STATE.kommo.filter(l=>l.stage==='Venda').reduce((a,l)=>{
-    return a + (parseFloat((l.mrr||'0').toString().replace(/[R$\s.]/g,'').replace(',','.')) || 0);
+  return STATE.kommo.filter(l => {
+    const idx = STAGE_ORDER.indexOf(l.stage);
+    return idx >= STAGE_ORDER.indexOf('Venda');
+  }).reduce((a,l)=>{
+    const raw = (l.mrr||'0').toString().replace(/[R$\s]/g,'').replace('.','').replace(',','.');
+    return a + (parseFloat(raw) || 0);
   }, 0);
+}
+
+function getKommoLeadsTotal() {
+  return STATE.kommo.length;
 }
 
 function openModal() { document.getElementById('kommoModal').classList.remove('hidden'); }
@@ -1117,20 +1148,19 @@ async function connectKommo() {
       });
     } catch(e) {}
 
-    // Map stage names to our funnel
-    const stageAliases = {
-      'em contato': 'Em contato inicial', 'contato inicial': 'Em contato inicial',
-      'em atendimento': 'Em Atendimento', 'atendimento': 'Em Atendimento',
-      'grupo imersão': 'Grupo Imersão', 'imersão': 'Grupo Imersão', 'imersao': 'Grupo Imersão',
-      'r1 marcada': 'R1 Marcada', 'r1 realizada': 'R1 Realizada',
-      'r2 marcada': 'R2 Marcada', 'r2 realizada': 'R2 Realizada', 'r2 apresentada': 'R2 Realizada',
-      'negociação': 'Negociação', 'negociacao': 'Negociação',
-      'venda': 'Venda', 'ganho': 'Venda',
-    };
-
+    // Map stage names to our funnel — matches exact Kommo stage names
     function mapStage(name) {
       const lower = (name||'').toLowerCase().trim();
-      return stageAliases[lower] || name || 'Em contato inicial';
+      if (lower.includes('novo lead') || lower.includes('contato inicial')) return 'Em contato inicial';
+      if (lower.includes('em atendimento') || lower === 'atendimento') return 'Em Atendimento';
+      if (lower.includes('imers') || lower.includes('grupo')) return 'Grupo Imersão';
+      if (lower.includes('r1 marcada')) return 'R1 Marcada';
+      if (lower.includes('r1 feita') || lower.includes('r1 realizada')) return 'R1 Realizada';
+      if (lower.includes('r2 marcada')) return 'R2 Marcada';
+      if (lower.includes('r2 apresentada') || lower.includes('r2 realizada')) return 'R2 Realizada';
+      if (lower.includes('negoci')) return 'Negociação';
+      if (lower.includes('aguardando') || lower.includes('pago') || lower.includes('venda') || lower.includes('ganho')) return 'Venda';
+      return name || 'Em contato inicial';
     }
 
     // Parse leads — fetch contacts in batches to avoid rate limits
@@ -1159,12 +1189,14 @@ async function connectKommo() {
       };
 
       const stageName = stagesMap[lead.status_id] || '';
+      const mappedStage = mapStage(stageName);
+      if (stageName) console.log(`[Kommo] Raw: "${stageName}" -> Mapped: "${mappedStage}"`);
       return {
         id: lead.id,
         name: lead.name || contactData.name || '—',
         phone: getField('telefone') || getField('phone') || '',
         instagram: getField('instagram') || '',
-        stage: mapStage(stageName),
+        stage: mappedStage,
         mrr: getLeadField('mrr') || lead.price || '',
         situacao: getLeadField('situação') || getLeadField('situacao') || '',
         sql: getLeadField('sql') || '',
