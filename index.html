@@ -189,8 +189,8 @@ table.wt tr:hover td:first-child{background:var(--surface2)}
         <div class="filter-pill"><label>Até</label><input type="date" id="fTo" onchange="applyFilters()"></div>
         <div class="filter-pill"><label>Data por</label>
           <select id="fType" onchange="applyFilters()">
-            <option value="entrada">Entrada do lead</option>
-            <option value="status">Alteração de status</option>
+            <option value="entrada">Growth</option>
+            <option value="status">Vendas</option>
           </select>
         </div>
         <button class="btn-refresh" onclick="loadAllData()">↻ Atualizar</button>
@@ -314,50 +314,91 @@ function applyFilters(){ renderAll(); }
 // PLANNING — picks months overlapping the filter range
 function getPlan(){
   const{from,to}=gf();
-  let rows=S.planning;
-  if(from||to){
-    const fd=from?new Date(from):null, td=to?new Date(to):null;
-    // Build a Set of "YYYY-MM" strings covered by the filter range
-    const coveredMonths=new Set();
-    if(fd&&td){
-      let cur=new Date(fd.getFullYear(),fd.getMonth(),1);
-      const end=new Date(td.getFullYear(),td.getMonth(),1);
-      while(cur<=end){ coveredMonths.add(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`); cur=new Date(cur.getFullYear(),cur.getMonth()+1,1); }
-    } else if(fd){
-      coveredMonths.add(`${fd.getFullYear()}-${String(fd.getMonth()+1).padStart(2,'0')}`);
-    } else if(td){
-      coveredMonths.add(`${td.getFullYear()}-${String(td.getMonth()+1).padStart(2,'0')}`);
+
+  // Build set of YYYY-MM months covered by the date filter
+  const coveredMonths=new Set();
+  const fd=from?new Date(from):null;
+  const td=to?new Date(to):null;
+  if(fd&&td){
+    let cur=new Date(fd.getFullYear(),fd.getMonth(),1);
+    const end=new Date(td.getFullYear(),td.getMonth(),1);
+    while(cur<=end){
+      coveredMonths.add(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`);
+      cur=new Date(cur.getFullYear(),cur.getMonth()+1,1);
     }
+  } else if(fd){
+    coveredMonths.add(`${fd.getFullYear()}-${String(fd.getMonth()+1).padStart(2,'0')}`);
+  } else if(td){
+    coveredMonths.add(`${td.getFullYear()}-${String(td.getMonth()+1).padStart(2,'0')}`);
+  }
+
+  // Filter planning rows by matching month
+  let rows=S.planning;
+  if(coveredMonths.size>0){
     const filtered=S.planning.filter(r=>{
-      // Try every column value — planning sheet may have date in any column
-      const vals=Object.values(r);
-      for(const ds of vals){
-        if(!ds) continue;
-        const d=pd(ds.toString()); if(!d||isNaN(d)) continue;
-        // Sanity check: year must be reasonable (2020-2030)
-        if(d.getFullYear()<2020||d.getFullYear()>2030) continue;
-        const ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-        if(coveredMonths.has(ym)) return true;
-      }
-      return false;
+      // The date column is "Data" with format DD/MM/YYYY
+      const ds=(r['Data']||'').toString().trim();
+      if(!ds) return false;
+      // Parse DD/MM/YYYY
+      const parts=ds.split('/');
+      if(parts.length!==3) return false;
+      const [dd,mm,yyyy]=parts;
+      const ym=`${yyyy}-${mm.padStart(2,'0')}`;
+      return coveredMonths.has(ym);
     });
-    if(filtered.length) rows=filtered;
+    if(filtered.length>0) rows=filtered;
   }
-  const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  function pf(field){
-    const keys=Object.keys(rows[0]||{});
-    const k=keys.find(k=>norm(k).includes(norm(field)));
-    return k?sf(rows,k):0;
+
+  // Helper: sum a column by exact name
+  function col(name){return sf(rows,name);}
+  // Helper: average a % column (already a %)
+  function colAvg(name){
+    if(!rows.length) return 0;
+    const total=rows.reduce((a,r)=>{
+      const raw=(r[name]||'').toString().replace('%','').replace(',','.').trim();
+      return a+(parseFloat(raw)||0);
+    },0);
+    return total/rows.length;
   }
+
+  // Exact column names from the planning sheet:
+  // Data, Investimento, CPL, Leads, Taxa de MQL, MQL, CMQL,
+  // Taxa de SQL, SQL, CSQL, Taxa de agendamento, Agendamentos,
+  // Taxa comparecimento R1, Reuniões R1, CPR1,
+  // Taxa comparecimento R2, Reuniões R2, CPR2,
+  // Taxa conversão, Nº de vendas, CAC, Ticket médio, Faturamento,
+  // Impressões, Cliques, CPM, CTR, CPC, Taxa de preenchimento
+
   return{
-    investimento:pf('investimento')||pf('invest')||0,
-    leads:pf('leads')||0, mql:pf('mql')||0, sql:pf('sql')||0,
-    agendamentos:pf('agendamento')||0, r1:pf('r1 realizada')||pf('r1')||0,
-    r2:pf('r2 realizada')||pf('r2')||0, vendas:pf('vendas')||pf('venda')||0,
-    faturamento:pf('faturamento')||pf('mrr')||0,
-    impressoes:pf('impressoes')||pf('impressao')||0, cliques:pf('cliques')||0,
-    cpl:0,cpc:0,cpm:0,ctr:0,cpmql:0,cpsql:0,cpag:0,cpr1:0,cpr2:0,cpv:0,
-    pct_mql:0,pct_sql:0,pct_ag:0,pct_r1:0,pct_r2:0
+    investimento: col('Investimento'),
+    cpl:          col('CPL'),
+    leads:        col('Leads'),
+    taxa_mql:     colAvg('Taxa de MQL'),
+    mql:          col('MQL'),
+    cmql:         col('CMQL'),
+    taxa_sql:     colAvg('Taxa de SQL'),
+    sql:          col('SQL'),
+    csql:         col('CSQL'),
+    taxa_ag:      colAvg('Taxa de agendamento'),
+    agendamentos: col('Agendamentos'),
+    taxa_r1:      colAvg('Taxa comparecimento R1'),
+    r1:           col('Reuniões R1'),
+    cpr1:         col('CPR1'),
+    taxa_r2:      colAvg('Taxa comparecimento R2'),
+    r2:           col('Reuniões R2'),
+    cpr2:         col('CPR2'),
+    taxa_conv:    colAvg('Taxa conversão'),
+    vendas:       col('Nº de vendas'),
+    cac:          col('CAC'),
+    ticket:       col('Ticket médio'),
+    faturamento:  col('Faturamento'),
+    impressoes:   col('Impressões'),
+    cliques:      col('Cliques'),
+    cpm:          col('CPM'),
+    ctr:          colAvg('CTR'),
+    cpc:          col('CPC'),
+    // aliases for compatibility
+    pct_mql:0, pct_sql:0, pct_ag:0, pct_r1:0, pct_r2:0
   };
 }
 
@@ -431,17 +472,21 @@ function renderP1(){
   const rv=cStage('Venda',km), rf=getMRR(km), inv=ta.investimento;
 
   document.getElementById('p1top').innerHTML=[
-    {l:'Investimento',v:brl(inv),p:brl(plan.investimento),d:delt(inv,plan.investimento)},
-    {l:'Leads',v:nn(rl),p:nn(plan.leads),d:delt(rl,plan.leads)},
-    {l:'Leads Qualificados',v:nn(rmql),p:nn(plan.mql),d:delt(rmql,plan.mql)},
-    {l:'R1 Realizadas',v:nn(r1r),p:nn(plan.r1),d:delt(r1r,plan.r1)},
-    {l:'R2 Realizadas',v:nn(r2r),p:nn(plan.r2),d:delt(r2r,plan.r2)},
-    {l:'Vendas',v:nn(rv),p:nn(plan.vendas),d:delt(rv,plan.vendas)},
-    {l:'Faturamento',v:brl(rf),p:brl(plan.faturamento),d:delt(rf,plan.faturamento)},
-    {l:'MRR Adicionado',v:brl(rf),p:'—',d:null},
+    {l:'Investimento',       v:brl(inv),  p:brl(plan.investimento),  d:delt(inv,plan.investimento)},
+    {l:'Leads',              v:nn(rl),    p:nn(plan.leads),           d:delt(rl,plan.leads)},
+    {l:'Leads Qualificados', v:nn(rmql),  p:nn(plan.mql),             d:delt(rmql,plan.mql)},
+    {l:'R1 Realizadas',      v:nn(r1r),   p:nn(plan.r1),              d:delt(r1r,plan.r1)},
+    {l:'R2 Realizadas',      v:nn(r2r),   p:nn(plan.r2),              d:delt(r2r,plan.r2)},
+    {l:'Vendas',             v:nn(rv),    p:nn(plan.vendas),           d:delt(rv,plan.vendas)},
+    {l:'Faturamento',        v:brl(rf),   p:brl(plan.faturamento),    d:delt(rf,plan.faturamento)},
+    {l:'MRR Adicionado',     v:brl(rf),   p:'—',                      d:null},
   ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div><div class="km"><span class="kp">Meta: <b>${k.p}</b></span>${db(k.d)}</div></div>`).join('');
 
-  const cac=rv>0?inv/rv:0, roas=inv>0?rf/inv:0, tick=rv>0?rf/rv:0, cpl=rl>0?inv/rl:0, cplq=rmql>0?inv/rmql:0;
+  const cac=rv>0?inv/rv:plan.cac||0;
+  const roas=inv>0?rf/inv:0;
+  const tick=rv>0?rf/rv:plan.ticket||0;
+  const cpl=rl>0?inv/rl:plan.cpl||0;
+  const cplq=rmql>0?inv/rmql:plan.cmql||0;
   document.getElementById('p1fin').innerHTML=[
     {l:'CAC',v:brl(cac)},{l:'ROAS',v:Rn(roas,2)+'x'},{l:'Ticket Médio',v:brl(tick)},{l:'CPL',v:brl(cpl)},{l:'CPLQ',v:brl(cplq)}
   ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div></div>`).join('');
@@ -460,7 +505,8 @@ function renderP2(){
   const rl=km.length>0?km.length:(ta.leads_traf||la.total);
   const inv=ta.investimento, imp=ta.impressoes, cl=ta.cliques;
   const kommoMql2=km.filter(l=>l.qualificacao&&l.qualificacao.trim()!=='').length;
-  const mql=kommoMql2>0?kommoMql2:la.mql, sql=la.sql;
+  const mql=kommoMql2>0?kommoMql2:la.mql;
+  const sql=la.sql;
   const r1m=cStage('R1 Marcada',km), r1r=cStage('R1 Realizada',km);
   const r2m=cStage('R2 Marcada',km), r2r=cStage('R2 Realizada',km);
   const rv=cStage('Venda',km);
@@ -478,15 +524,15 @@ function renderP2(){
     <thead><tr><th>Métrica</th><th>Plan.</th><th>Real.</th><th>Δ</th><th>Custo Plan.</th><th>Custo Real.</th><th>Δ</th><th>% Plan.</th><th>% Real.</th><th>Δ</th></tr></thead>
     <tbody>
       ${row('Investimento',plan.investimento,inv,null,null,null,null,brl)}
-      ${row('Impressões',plan.impressoes,imp,plan.cpm,cpm_r,null,null)}
-      ${row('Cliques',plan.cliques,cl,plan.cpc,cpc_r,plan.ctr,ctr_r)}
+      ${row('Impressões',plan.impressoes,imp,plan.cpm,cpm_r,plan.ctr,ctr_r)}
+      ${row('Cliques',plan.cliques,cl,plan.cpc,cpc_r,null,null)}
       ${row('Leads',plan.leads,rl,plan.cpl,cpl_r,null,null)}
-      ${row('MQL',plan.mql,mql,plan.cpmql,cpmql,plan.pct_mql,pm)}
-      ${row('SQL',plan.sql,sql,plan.cpsql,cpsql,plan.pct_sql,ps)}
-      ${row('Agendamentos R1',plan.agendamentos,r1m,plan.cpag,cpag,plan.pct_ag,pa)}
-      ${row('R1 Realizada',plan.r1,r1r,plan.cpr1,cpr1,plan.pct_r1,p1)}
-      ${row('R2 Realizada',plan.r2,r2r,plan.cpr2,cpr2,plan.pct_r2,p2)}
-      ${row('Vendas',plan.vendas,rv,plan.cpv,cpv,null,null)}
+      ${row('MQL',plan.mql,mql,plan.cmql,cpmql,plan.taxa_mql,pm)}
+      ${row('SQL',plan.sql,sql,plan.csql,cpsql,plan.taxa_sql,ps)}
+      ${row('Agendamentos R1',plan.agendamentos,r1m,plan.cpr1,cpag,plan.taxa_ag,pa)}
+      ${row('R1 Realizada',plan.r1,r1r,plan.cpr1,cpr1,plan.taxa_r1,p1)}
+      ${row('R2 Realizada',plan.r2,r2r,plan.cpr2,cpr2,plan.taxa_r2,p2)}
+      ${row('Vendas',plan.vendas,rv,plan.cac,cpv,plan.taxa_conv,null)}
     </tbody></table>`;
 }
 
@@ -602,7 +648,8 @@ function renderP5(){
   const ta=aTraffic(tr),la=aLeads(ld),plan=getPlan();
   const rl=km.length>0?km.length:(ta.leads_traf||la.total);
   const kommoMql5=km.filter(l=>l.qualificacao&&l.qualificacao.trim()!=='').length;
-  if(kommoMql5>0) la.mql=kommoMql5;
+  const mqlP5=kommoMql5>0?kommoMql5:la.mql;
+  la.mql=mqlP5;
   const rv=cStage('Venda',km),inv=ta.investimento,rf=getMRR(km);
 
   document.getElementById('p5kpis').innerHTML=[
