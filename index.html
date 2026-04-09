@@ -3,1254 +3,727 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard SE — Comercial & Tráfego</title>
+<title>Dashboard SE — Elev Mídia</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
-:root {
-  --bg: #0a0d14;
-  --surface: #111520;
-  --surface2: #161c2d;
-  --border: #1e2740;
-  --border2: #253050;
-  --accent: #4f7fff;
-  --accent2: #7c5cfc;
-  --green: #22c77d;
-  --red: #f04f5e;
-  --yellow: #f5a623;
-  --text: #e8ecf4;
-  --text2: #8a93b0;
-  --text3: #4e5874;
-  --font: 'DM Sans', sans-serif;
-  --mono: 'DM Mono', monospace;
-  --radius: 12px;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
-
-/* LAYOUT */
-.app { display: flex; height: 100vh; overflow: hidden; }
-.sidebar { width: 220px; min-width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 24px 0; }
-.logo { padding: 0 20px 24px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
-.logo h1 { font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
-.logo span { font-size: 11px; color: var(--text3); font-family: var(--mono); text-transform: uppercase; letter-spacing: 1px; }
-nav { flex: 1; padding: 8px 12px; }
-nav a { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; color: var(--text2); font-size: 13px; font-weight: 500; margin-bottom: 2px; transition: all 0.15s; text-decoration: none; border: none; background: none; width: 100%; text-align: left; }
-nav a:hover { background: var(--surface2); color: var(--text); }
-nav a.active { background: rgba(79,127,255,0.12); color: var(--accent); }
-nav a .icon { font-size: 16px; width: 20px; text-align: center; }
-.sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); }
-.kommo-btn { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border2); background: transparent; color: var(--text2); font-family: var(--font); font-size: 12px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; justify-content: center; transition: all 0.2s; }
-.kommo-btn:hover { border-color: var(--accent); color: var(--accent); }
-.kommo-btn.connected { border-color: var(--green); color: var(--green); }
-.kommo-btn .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-
-/* MAIN */
-.main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
-.topbar { padding: 16px 28px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; background: var(--surface); position: sticky; top: 0; z-index: 10; }
-.topbar h2 { font-size: 15px; font-weight: 600; flex: 1; }
-.filters { display: flex; align-items: center; gap: 10px; }
-.filter-group { display: flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; }
-.filter-group label { font-size: 11px; color: var(--text3); white-space: nowrap; }
-.filter-group input, .filter-group select { background: none; border: none; outline: none; color: var(--text); font-family: var(--font); font-size: 12px; cursor: pointer; }
-.filter-group select option { background: var(--surface2); }
-.content { padding: 24px 28px; flex: 1; }
-.page { display: none; }
-.page.active { display: block; }
-
-/* CARDS */
-.kpi-grid { display: grid; gap: 12px; margin-bottom: 20px; }
-.kpi-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
-.kpi-grid.cols-5 { grid-template-columns: repeat(5, 1fr); }
-.kpi-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
-.kpi-grid.cols-6 { grid-template-columns: repeat(6, 1fr); }
-.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; }
-.kpi .label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; margin-bottom: 8px; }
-.kpi .value { font-size: 26px; font-weight: 700; letter-spacing: -1px; color: var(--text); font-family: var(--mono); }
-.kpi .row { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
-.kpi .plan { font-size: 12px; color: var(--text3); }
-.kpi .plan span { color: var(--text2); font-family: var(--mono); }
-.kpi .delta { font-size: 12px; font-weight: 600; padding: 2px 6px; border-radius: 5px; font-family: var(--mono); }
-.kpi .delta.pos { background: rgba(34,199,125,0.12); color: var(--green); }
-.kpi .delta.neg { background: rgba(240,79,94,0.12); color: var(--red); }
-.kpi .delta.neu { background: rgba(138,147,176,0.1); color: var(--text3); }
-.kpi-accent { border-color: rgba(79,127,255,0.3); background: rgba(79,127,255,0.04); }
-
-/* COMPARISON TABLE (page 2) */
-.comp-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 20px; }
-.comp-table-wrap h3 { padding: 16px 20px; font-size: 13px; font-weight: 600; color: var(--text2); border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.8px; }
-.comp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.comp-table th { padding: 10px 16px; text-align: right; color: var(--text3); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; background: var(--surface2); border-bottom: 1px solid var(--border); }
-.comp-table th:first-child { text-align: left; }
-.comp-table td { padding: 10px 16px; text-align: right; border-bottom: 1px solid var(--border); color: var(--text2); font-family: var(--mono); font-size: 12px; }
-.comp-table td:first-child { text-align: left; color: var(--text); font-family: var(--font); font-weight: 500; }
-.comp-table tr:last-child td { border-bottom: none; }
-.comp-table tr:hover td { background: rgba(255,255,255,0.02); }
-.delta-cell.pos { color: var(--green); }
-.delta-cell.neg { color: var(--red); }
-
-/* WEEKLY/MONTHLY TABLE */
-.scroll-wrap { overflow-x: auto; }
-.scroll-wrap::-webkit-scrollbar { height: 4px; }
-.scroll-wrap::-webkit-scrollbar-track { background: var(--surface2); }
-.scroll-wrap::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-.data-table { min-width: 1400px; width: 100%; border-collapse: collapse; font-size: 11.5px; }
-.data-table th { padding: 8px 12px; text-align: right; color: var(--text3); font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.7px; background: var(--surface2); border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; z-index: 2; }
-.data-table th:first-child { text-align: left; position: sticky; left: 0; z-index: 3; background: var(--surface2); min-width: 160px; }
-.data-table td { padding: 8px 12px; text-align: right; border-bottom: 1px solid var(--border); color: var(--text2); font-family: var(--mono); white-space: nowrap; }
-.data-table td:first-child { text-align: left; color: var(--text); font-family: var(--font); font-weight: 500; position: sticky; left: 0; background: var(--surface); }
-.data-table tr:hover td { background: rgba(255,255,255,0.015); }
-.data-table tr:hover td:first-child { background: var(--surface2); }
-
-/* CHART */
-.chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-top: 20px; }
-.chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.chart-header h3 { font-size: 13px; font-weight: 600; color: var(--text2); }
-.chart-select { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; color: var(--text); font-family: var(--font); font-size: 12px; outline: none; cursor: pointer; }
-.chart-canvas-wrap { position: relative; height: 220px; }
-
-/* FUNNEL CARDS */
-.funnel-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 20px; }
-.funnel-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; max-height: 320px; overflow-y: auto; }
-.funnel-card h4 { font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
-.funnel-card h4 .count { background: rgba(79,127,255,0.15); color: var(--accent); padding: 2px 8px; border-radius: 10px; font-size: 11px; }
-.lead-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
-.lead-item:last-child { border-bottom: none; }
-.lead-item .name { font-size: 13px; font-weight: 600; color: var(--text); }
-.lead-item .info { font-size: 11px; color: var(--text3); margin-top: 3px; font-family: var(--mono); }
-
-/* TRAFEGO TABLE */
-.traf-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 20px; overflow: hidden; }
-.traf-section-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-.traf-section-header h3 { font-size: 13px; font-weight: 600; }
-.mini-cards { display: flex; gap: 10px; }
-.mini-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; min-width: 100px; }
-.mini-card .mc-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.7px; }
-.mini-card .mc-val { font-size: 18px; font-weight: 700; font-family: var(--mono); color: var(--text); }
-.mini-card.green .mc-val { color: var(--green); }
-.mini-card.red .mc-val { color: var(--red); }
-
-/* SECTION TITLES */
-.section-title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin: 24px 0 12px; }
-
-/* LOADING */
-.loading { text-align: center; padding: 60px; color: var(--text3); }
-.loading .spinner { width: 32px; height: 32px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* KOMMO MODAL */
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
-.modal-overlay.hidden { display: none; }
-.modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; padding: 32px; width: 420px; }
-.modal h3 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
-.modal p { font-size: 13px; color: var(--text2); margin-bottom: 24px; line-height: 1.6; }
-.modal-form { display: flex; flex-direction: column; gap: 12px; }
-.modal-form label { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; display: block; }
-.modal-form input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px; padding: 10px 14px; color: var(--text); font-family: var(--font); font-size: 13px; outline: none; transition: border-color 0.2s; }
-.modal-form input:focus { border-color: var(--accent); }
-.modal-actions { display: flex; gap: 10px; margin-top: 8px; }
-.btn { padding: 10px 20px; border-radius: 8px; font-family: var(--font); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; border: none; }
-.btn-primary { background: var(--accent); color: #fff; }
-.btn-primary:hover { background: #6090ff; }
-.btn-ghost { background: transparent; border: 1px solid var(--border2); color: var(--text2); }
-.btn-ghost:hover { border-color: var(--text2); color: var(--text); }
-.error-msg { font-size: 12px; color: var(--red); margin-top: 4px; display: none; }
-.error-msg.show { display: block; }
-
-/* RESPONSIVE */
-@media (max-width: 1200px) {
-  .kpi-grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
-  .kpi-grid.cols-5 { grid-template-columns: repeat(3, 1fr); }
-  .funnel-grid { grid-template-columns: repeat(2, 1fr); }
-}
+:root{--bg:#f0f2f5;--sidebar-bg:#0f1b3d;--sidebar-hover:#1a2d5a;--sidebar-active:#1e3468;--sidebar-text:#a8b8d8;--surface:#ffffff;--surface2:#f8f9fb;--border:#e8ecf2;--border2:#d0d8e8;--accent:#2563eb;--accent-light:#eff4ff;--green:#16a34a;--green-light:#f0fdf4;--red:#dc2626;--red-light:#fef2f2;--yellow:#d97706;--yellow-light:#fffbeb;--text:#0f172a;--text2:#475569;--text3:#94a3b8;--font:'Inter',sans-serif;--radius:10px;--shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.04);--shadow-md:0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.04)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;font-size:14px}
+.app{display:flex;height:100vh;overflow:hidden}
+.sidebar{width:230px;min-width:230px;background:var(--sidebar-bg);display:flex;flex-direction:column}
+.logo{padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+.logo-inner{display:flex;align-items:center;gap:10px}
+.logo-icon{width:34px;height:34px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:#fff;flex-shrink:0}
+.logo-text h1{font-size:14px;font-weight:700;color:#fff}
+.logo-text span{font-size:11px;color:var(--sidebar-text)}
+.sidebar-section{padding:14px 12px 2px}
+.sidebar-section-label{font-size:10px;font-weight:600;color:var(--sidebar-text);text-transform:uppercase;letter-spacing:1px;padding:0 8px;margin-bottom:4px}
+nav a{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;cursor:pointer;color:var(--sidebar-text);font-size:13px;font-weight:500;margin-bottom:1px;transition:all .15s;text-decoration:none;border:none;background:none;width:100%;text-align:left}
+nav a:hover{background:var(--sidebar-hover);color:#fff}
+nav a.active{background:var(--sidebar-active);color:#fff}
+nav a .icon{font-size:14px;width:18px;text-align:center;opacity:.8}
+nav a.active .icon{opacity:1}
+.sidebar-footer{margin-top:auto;padding:14px;border-top:1px solid rgba(255,255,255,.08)}
+.kommo-btn{width:100%;padding:8px 12px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--sidebar-text);font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:center;transition:all .2s}
+.kommo-btn:hover{border-color:rgba(255,255,255,.3);color:#fff}
+.kommo-btn.connected{border-color:#22c55e;color:#22c55e}
+.kommo-btn .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
+.topbar{padding:12px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--surface);position:sticky;top:0;z-index:10;box-shadow:var(--shadow);flex-wrap:wrap}
+.topbar h2{font-size:15px;font-weight:600;color:var(--text);flex:1;white-space:nowrap}
+.topbar-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.filter-pill{display:flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:12px}
+.filter-pill label{font-weight:600;color:var(--text3);white-space:nowrap}
+.filter-pill input,.filter-pill select{background:none;border:none;outline:none;color:var(--text);font-family:var(--font);font-size:12px;cursor:pointer}
+.btn-refresh{padding:6px 12px;border-radius:7px;border:1px solid var(--border);background:var(--surface);color:var(--text2);font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s}
+.btn-refresh:hover{background:var(--surface2);color:var(--text)}
+.content{padding:18px 22px;flex:1}
+.page{display:none}
+.page.active{display:block}
+.sec{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin:18px 0 10px}
+.sec:first-child{margin-top:0}
+.kpi-grid{display:grid;gap:10px}
+.kpi-grid.c4{grid-template-columns:repeat(4,1fr)}
+.kpi-grid.c5{grid-template-columns:repeat(5,1fr)}
+.kpi-grid.c8{grid-template-columns:repeat(8,1fr)}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:15px 16px;box-shadow:var(--shadow)}
+.kpi .kl{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px}
+.kpi .kv{font-size:21px;font-weight:700;color:var(--text);letter-spacing:-.5px;line-height:1.1}
+.kpi .km{display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap}
+.kpi .kp{font-size:11px;color:var(--text3)}
+.kpi .kp b{color:var(--text2);font-weight:600}
+.badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;white-space:nowrap}
+.badge.pos{background:var(--green-light);color:var(--green)}
+.badge.neg{background:var(--red-light);color:var(--red)}
+.badge.neu{background:var(--surface2);color:var(--text3)}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.panel-hd{padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--surface2)}
+.panel-hd h3{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.7px}
+.tbl-wrap{overflow-x:auto}
+.tbl-wrap::-webkit-scrollbar{height:4px;width:4px}
+.tbl-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
+table.dt th{padding:8px 12px;text-align:right;color:var(--text3);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.6px;background:var(--surface2);border-bottom:1px solid var(--border);white-space:nowrap}
+table.dt th:first-child{text-align:left}
+table.dt td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--border);color:var(--text2);white-space:nowrap;font-size:12.5px}
+table.dt td:first-child{text-align:left;color:var(--text);font-weight:500}
+table.dt tr:last-child td{border-bottom:none}
+table.dt tr:hover td{background:var(--surface2)}
+.dp{color:var(--green);font-weight:600}
+.dn{color:var(--red);font-weight:600}
+table.wt{min-width:1400px;width:100%;border-collapse:collapse;font-size:11.5px}
+table.wt th{padding:7px 10px;text-align:right;color:var(--text3);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.6px;background:var(--surface2);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;z-index:2}
+table.wt th:first-child{text-align:left;position:sticky;left:0;z-index:3;min-width:155px}
+table.wt td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--border);color:var(--text2);white-space:nowrap}
+table.wt td:first-child{text-align:left;color:var(--text);font-weight:500;position:sticky;left:0;background:var(--surface);z-index:1}
+table.wt tr:hover td{background:var(--surface2)}
+table.wt tr:hover td:first-child{background:var(--surface2)}
+.chart-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.chart-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.chart-hd h3{font-size:13px;font-weight:600;color:var(--text)}
+.chart-sel{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;cursor:pointer}
+.chart-c{position:relative;height:200px}
+.funnel-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.fc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;max-height:280px;display:flex;flex-direction:column}
+.fc-hd{padding:9px 14px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.fc-hd h4{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.7px}
+.fc-count{background:var(--accent-light);color:var(--accent);font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px}
+.fc-body{overflow-y:auto;flex:1;padding:4px 0}
+.fc-body::-webkit-scrollbar{width:3px}
+.fc-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.lead-row{padding:7px 14px;border-bottom:1px solid var(--border)}
+.lead-row:last-child{border-bottom:none}
+.lead-name{font-size:12px;font-weight:600;color:var(--text)}
+.lead-info{font-size:11px;color:var(--text3);margin-top:2px}
+.empty-s{padding:18px;text-align:center;color:var(--text3);font-size:12px}
+.mini-stats{display:flex;gap:8px}
+.ms{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:7px 12px;min-width:80px}
+.ms .msl{font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+.ms .msv{font-size:16px;font-weight:700;color:var(--text);margin-top:1px}
+.ms.green .msv{color:var(--green)}
+.ms.red .msv{color:var(--red)}
+.ls{padding:36px;text-align:center;color:var(--text3)}
+.spin{width:26px;height:26px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.modal-ov{position:fixed;inset:0;background:rgba(15,27,61,.6);z-index:100;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.modal-ov.hidden{display:none}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;width:420px;box-shadow:var(--shadow-md)}
+.modal h3{font-size:17px;font-weight:700;margin-bottom:6px;color:var(--text)}
+.modal p{font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.6}
+.fg{margin-bottom:14px}
+.fg label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;display:block;margin-bottom:5px}
+.fg input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:7px;padding:9px 12px;color:var(--text);font-family:var(--font);font-size:13px;outline:none;transition:border-color .2s}
+.fg input:focus{border-color:var(--accent)}
+.modal-act{display:flex;gap:8px;margin-top:8px}
+.btn{padding:9px 18px;border-radius:7px;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;border:none}
+.btn-p{background:var(--accent);color:#fff}
+.btn-p:hover{background:#1d4ed8}
+.btn-g{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.btn-g:hover{border-color:var(--text2);color:var(--text)}
+.err{font-size:12px;color:var(--red);margin-top:6px;display:none}
+.err.show{display:block}
+.mt12{margin-top:12px}
+.mt20{margin-top:20px}
+@media(max-width:1300px){.kpi-grid.c4{grid-template-columns:repeat(2,1fr)}.kpi-grid.c5{grid-template-columns:repeat(3,1fr)}.funnel-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 
-<!-- KOMMO AUTH MODAL -->
-<div class="modal-overlay hidden" id="kommoModal">
+<div class="modal-ov hidden" id="kommoModal">
   <div class="modal">
     <h3>🔗 Conectar Kommo</h3>
-    <p>Informe o subdomínio da sua conta Kommo e o Access Token para buscar os dados do funil SE.</p>
-    <div class="modal-form">
-      <div>
-        <label>Subdomínio (ex: minhaempresa)</label>
-        <input id="kommoSubdomain" type="text" placeholder="seusubdominio" />
-      </div>
-      <div>
-        <label>Access Token (Long-lived)</label>
-        <input id="kommoToken" type="password" placeholder="Cole o token aqui" />
-        <div class="error-msg" id="kommoError">Erro ao conectar. Verifique o subdomínio e token.</div>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn btn-primary" onclick="connectKommo()">Conectar</button>
-      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+    <p>Informe o subdomínio da sua conta Kommo e o Access Token para sincronizar os dados do funil SE.</p>
+    <div class="fg"><label>Subdomínio</label><input id="ks" type="text" placeholder="ex: elevmidia"/></div>
+    <div class="fg"><label>Access Token</label><input id="kt" type="password" placeholder="Cole o token aqui"/>
+      <div class="err" id="kerr">Erro ao conectar. Verifique o subdomínio e token.</div></div>
+    <div class="modal-act">
+      <button class="btn btn-p" onclick="connectKommo()">Conectar</button>
+      <button class="btn btn-g" onclick="closeModal()">Cancelar</button>
     </div>
   </div>
 </div>
 
 <div class="app">
-  <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="logo">
-      <h1>Dashboard SE</h1>
-      <span>Comercial & Tráfego</span>
+      <div class="logo-inner">
+        <div class="logo-icon">E</div>
+        <div class="logo-text"><h1>Elev Mídia</h1><span>Dashboard SE</span></div>
+      </div>
     </div>
-    <nav>
-      <a class="active" onclick="showPage('page1',this)"><span class="icon">📊</span> Visão Geral</a>
-      <a onclick="showPage('page2',this)"><span class="icon">📋</span> Totais</a>
-      <a onclick="showPage('page3',this)"><span class="icon">📅</span> Semanas</a>
-      <a onclick="showPage('page4',this)"><span class="icon">🗓️</span> Meses</a>
-      <a onclick="showPage('page5',this)"><span class="icon">📣</span> Tráfego</a>
-    </nav>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Funil</div>
+      <nav>
+        <a class="active" onclick="showPage('page1',this)"><span class="icon">📊</span>Visão Geral</a>
+        <a onclick="showPage('page2',this)"><span class="icon">📋</span>Totais</a>
+      </nav>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Histórico</div>
+      <nav>
+        <a onclick="showPage('page3',this)"><span class="icon">📅</span>Semanas</a>
+        <a onclick="showPage('page4',this)"><span class="icon">🗓️</span>Meses</a>
+      </nav>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Tráfego</div>
+      <nav>
+        <a onclick="showPage('page5',this)"><span class="icon">📣</span>Campanhas</a>
+      </nav>
+    </div>
     <div class="sidebar-footer">
       <button class="kommo-btn" id="kommoBtn" onclick="openModal()">
-        <span class="dot"></span>
-        <span id="kommoBtnText">Autenticar Kommo</span>
+        <span class="dot"></span><span id="kBtnTxt">Autenticar Kommo</span>
       </button>
     </div>
   </aside>
 
-  <!-- MAIN -->
   <div class="main">
     <div class="topbar">
       <h2 id="pageTitle">Visão Geral do Funil</h2>
-      <div class="filters" id="mainFilters">
-        <div class="filter-group">
-          <label>De</label>
-          <input type="date" id="filterFrom" onchange="applyFilters()">
-        </div>
-        <div class="filter-group">
-          <label>Até</label>
-          <input type="date" id="filterTo" onchange="applyFilters()">
-        </div>
-        <div class="filter-group">
-          <label>Data de</label>
-          <select id="filterDateType" onchange="applyFilters()">
+      <div class="topbar-right">
+        <div class="filter-pill"><label>De</label><input type="date" id="fFrom" onchange="applyFilters()"></div>
+        <div class="filter-pill"><label>Até</label><input type="date" id="fTo" onchange="applyFilters()"></div>
+        <div class="filter-pill"><label>Data por</label>
+          <select id="fType" onchange="applyFilters()">
             <option value="entrada">Entrada do lead</option>
             <option value="status">Alteração de status</option>
           </select>
         </div>
-        <button class="btn btn-ghost" onclick="loadAllData()" style="padding:6px 14px;font-size:12px;">↻ Atualizar</button>
+        <button class="btn-refresh" onclick="loadAllData()">↻ Atualizar</button>
       </div>
     </div>
 
     <div class="content">
-
-      <!-- PAGE 1: VISÃO GERAL -->
       <div class="page active" id="page1">
-        <div class="section-title">Métricas Chave</div>
-        <div class="kpi-grid cols-4" id="p1-kpis-top">
-          <div class="loading"><div class="spinner"></div>Carregando...</div>
-        </div>
-        <div class="section-title">Financeiro</div>
-        <div class="kpi-grid cols-5" id="p1-kpis-fin">
-          <div class="loading"><div class="spinner"></div></div>
-        </div>
-        <div class="section-title">Leads nas Etapas Críticas</div>
-        <div class="funnel-grid" id="p1-funnel-cards">
-          <div class="loading" style="grid-column:1/-1"><div class="spinner"></div>Aguardando dados do Kommo...</div>
-        </div>
+        <div class="sec">Métricas do Funil</div>
+        <div class="kpi-grid c4" id="p1top"><div class="ls" style="grid-column:1/-1"><div class="spin"></div>Carregando...</div></div>
+        <div class="sec mt12">Financeiro & Eficiência</div>
+        <div class="kpi-grid c5" id="p1fin"></div>
+        <div class="sec mt20">Leads nas Etapas Críticas</div>
+        <div class="funnel-grid" id="p1cards"><div class="ls" style="grid-column:1/-1"><div class="spin"></div>Aguardando Kommo...</div></div>
       </div>
 
-      <!-- PAGE 2: TOTAIS -->
       <div class="page" id="page2">
-        <div class="comp-table-wrap">
-          <h3>Comparativo Planejado vs Realizado</h3>
-          <div id="p2-table-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
+        <div class="sec">Planejado vs Realizado</div>
+        <div class="panel"><div class="panel-hd"><h3>Comparativo Completo</h3></div>
+          <div class="tbl-wrap" id="p2tbl"><div class="ls"><div class="spin"></div>Carregando...</div></div>
         </div>
       </div>
 
-      <!-- PAGE 3: SEMANAS -->
       <div class="page" id="page3">
-        <div class="section-title">Dados Semanais (Realizados)</div>
-        <div class="traf-section">
-          <div class="scroll-wrap">
-            <div id="p3-table-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
-          </div>
+        <div class="sec">Dados por Semana (Realizados)</div>
+        <div class="panel"><div class="panel-hd"><h3>Tabela Semanal</h3></div>
+          <div class="tbl-wrap" id="p3tbl"><div class="ls"><div class="spin"></div>Carregando...</div></div>
         </div>
-        <div class="chart-wrap">
-          <div class="chart-header">
-            <h3>Evolução Semanal</h3>
-            <select class="chart-select" id="p3ChartMetric" onchange="renderWeeklyChart()">
-              <option value="investimento">Investimento</option>
-              <option value="faturamento">Faturamento</option>
-              <option value="leads">Leads</option>
-              <option value="leads_qual">Leads Qualificados</option>
-              <option value="cpl">CPL</option>
-              <option value="cplq">CPLQ</option>
-              <option value="vendas">Vendas</option>
+        <div class="mt12 chart-box">
+          <div class="chart-hd"><h3>Evolução Semanal</h3>
+            <select class="chart-sel" id="p3m" onchange="renderWeeklyChart()">
+              <option value="investimento">Investimento</option><option value="faturamento">Faturamento</option>
+              <option value="leads">Leads</option><option value="leads_qual">Leads Qualificados</option>
+              <option value="cpl">CPL</option><option value="cplq">CPLQ</option><option value="vendas">Vendas</option>
             </select>
           </div>
-          <div class="chart-canvas-wrap"><canvas id="weeklyChart"></canvas></div>
+          <div class="chart-c"><canvas id="wChart"></canvas></div>
         </div>
       </div>
 
-      <!-- PAGE 4: MESES -->
       <div class="page" id="page4">
-        <div class="section-title">Dados Mensais (Realizados)</div>
-        <div class="traf-section">
-          <div class="scroll-wrap">
-            <div id="p4-table-wrap"><div class="loading"><div class="spinner"></div>Carregando...</div></div>
-          </div>
+        <div class="sec">Dados por Mês (Realizados)</div>
+        <div class="panel"><div class="panel-hd"><h3>Tabela Mensal</h3></div>
+          <div class="tbl-wrap" id="p4tbl"><div class="ls"><div class="spin"></div>Carregando...</div></div>
         </div>
-        <div class="chart-wrap">
-          <div class="chart-header">
-            <h3>Evolução Mensal</h3>
-            <select class="chart-select" id="p4ChartMetric" onchange="renderMonthlyChart()">
-              <option value="investimento">Investimento</option>
-              <option value="faturamento">Faturamento</option>
-              <option value="leads">Leads</option>
-              <option value="leads_qual">Leads Qualificados</option>
-              <option value="cpl">CPL</option>
-              <option value="cplq">CPLQ</option>
-              <option value="vendas">Vendas</option>
+        <div class="mt12 chart-box">
+          <div class="chart-hd"><h3>Evolução Mensal</h3>
+            <select class="chart-sel" id="p4m" onchange="renderMonthlyChart()">
+              <option value="investimento">Investimento</option><option value="faturamento">Faturamento</option>
+              <option value="leads">Leads</option><option value="leads_qual">Leads Qualificados</option>
+              <option value="cpl">CPL</option><option value="cplq">CPLQ</option><option value="vendas">Vendas</option>
             </select>
           </div>
-          <div class="chart-canvas-wrap"><canvas id="monthlyChart"></canvas></div>
+          <div class="chart-c"><canvas id="mChart"></canvas></div>
         </div>
       </div>
 
-      <!-- PAGE 5: TRÁFEGO -->
       <div class="page" id="page5">
-        <div class="section-title">Métricas de Tráfego</div>
-        <div class="kpi-grid cols-4" id="p5-kpis">
-          <div class="loading"><div class="spinner"></div>Carregando...</div>
-        </div>
-        <div class="section-title">Financeiro</div>
-        <div class="kpi-grid cols-4" id="p5-kpis-fin">
-          <div class="loading"><div class="spinner"></div></div>
-        </div>
-
-        <div class="section-title">Por Campanha</div>
-        <div class="traf-section">
-          <div class="traf-section-header">
-            <h3>Campanhas</h3>
-            <div class="mini-cards" id="campCards"></div>
-          </div>
-          <div class="scroll-wrap">
-            <div id="p5-camp-table"><div class="loading"><div class="spinner"></div></div></div>
-          </div>
-        </div>
-
-        <div class="section-title">Por Público</div>
-        <div class="traf-section">
-          <div class="traf-section-header">
-            <h3>Públicos</h3>
-            <div class="mini-cards" id="adsetCards"></div>
-          </div>
-          <div class="scroll-wrap">
-            <div id="p5-adset-table"><div class="loading"><div class="spinner"></div></div></div>
-          </div>
-        </div>
-
-        <div class="section-title">Por Criativo</div>
-        <div class="traf-section">
-          <div class="traf-section-header">
-            <h3>Criativos</h3>
-            <div class="mini-cards" id="adCards"></div>
-          </div>
-          <div class="scroll-wrap">
-            <div id="p5-ad-table"><div class="loading"><div class="spinner"></div></div></div>
-          </div>
-        </div>
+        <div class="sec">Métricas Gerais</div>
+        <div class="kpi-grid c4" id="p5kpis"><div class="ls" style="grid-column:1/-1"><div class="spin"></div></div></div>
+        <div class="sec mt12">Financeiro</div>
+        <div class="kpi-grid c4" id="p5fin"></div>
+        <div class="sec mt20">Por Campanha</div>
+        <div class="panel"><div class="panel-hd"><h3>Campanhas</h3><div class="mini-stats" id="campCards"></div></div>
+          <div class="tbl-wrap" id="p5camp"></div></div>
+        <div class="sec mt20">Por Público</div>
+        <div class="panel"><div class="panel-hd"><h3>Públicos</h3><div class="mini-stats" id="adsetCards"></div></div>
+          <div class="tbl-wrap" id="p5adset"></div></div>
+        <div class="sec mt20">Por Criativo</div>
+        <div class="panel"><div class="panel-hd"><h3>Criativos</h3><div class="mini-stats" id="adCards"></div></div>
+          <div class="tbl-wrap" id="p5ad"></div></div>
       </div>
-
-    </div><!-- /content -->
-  </div><!-- /main -->
-</div><!-- /app -->
+    </div>
+  </div>
+</div>
 
 <script>
-// =============================================
 // STATE
-// =============================================
-const STATE = {
-  traffic: [],
-  leads: [],
-  planning: [],
-  kommo: [],
-  kommoToken: null,
-  kommoSubdomain: null,
-  loaded: { traffic: false, leads: false, planning: false },
-  charts: {}
-};
+const S = { traffic:[], leads:[], planning:[], kommo:[] };
 
-// =============================================
-// GOOGLE SHEETS CSV LOADER
-// =============================================
+// SHEETS
 const SHEETS = {
   traffic:  'https://docs.google.com/spreadsheets/d/16iypcty5Daw7b05CHuL0Bcqjh7uJd7YmzBBl7ApELVI/export?format=csv&gid=1202153508',
   leads:    'https://docs.google.com/spreadsheets/d/1jVvHWYL_rQRexEAVc4aUwGrQISyYc-cwKJ5EuqOdWes/export?format=csv&gid=519313856',
   planning: 'https://docs.google.com/spreadsheets/d/1YjyJSkhODZUgpZ6ldV5aSZkexBy3hCxrqXkuhsayL9A/export?format=csv&gid=0'
 };
 
-async function loadCSV(url) {
-  return new Promise((resolve, reject) => {
-    Papa.parse(url, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: r => resolve(r.data),
-      error: e => reject(e)
-    });
-  });
-}
+async function loadCSV(url){ return new Promise((res,rej)=>Papa.parse(url,{download:true,header:true,skipEmptyLines:true,complete:r=>res(r.data),error:e=>rej(e)})); }
 
-async function loadAllData() {
+async function loadAllData(){
   try {
-    const [traffic, leads, planning] = await Promise.all([
-      loadCSV(SHEETS.traffic),
-      loadCSV(SHEETS.leads),
-      loadCSV(SHEETS.planning)
-    ]);
-    STATE.traffic = traffic;
-    STATE.leads = leads;
-    STATE.planning = planning;
-    STATE.loaded = { traffic: true, leads: true, planning: true };
+    const [t,l,p] = await Promise.all([loadCSV(SHEETS.traffic),loadCSV(SHEETS.leads),loadCSV(SHEETS.planning)]);
+    S.traffic=t; S.leads=l; S.planning=p;
     renderAll();
-  } catch(e) {
-    console.error('Erro ao carregar planilhas:', e);
-    showDataError();
-  }
+  } catch(e){ console.error(e); }
 }
 
-function showDataError() {
-  document.querySelectorAll('.loading').forEach(el => {
-    el.innerHTML = `<span style="color:var(--red)">⚠ Erro ao carregar dados. Verifique se as planilhas estão públicas (compartilhamento: "qualquer pessoa com o link").</span>`;
-  });
+// DATE
+function pd(s){
+  if(!s) return null;
+  s=s.toString().trim();
+  if(s.includes('/')){const p=s.split('/');if(p.length===3){const[a,b,c]=p;return new Date(`${c}-${b.padStart(2,'0')}-${a.padStart(2,'0')}`);}}
+  const d=new Date(s); return isNaN(d)?null:d;
 }
 
-// =============================================
-// DATE FILTERS
-// =============================================
-function getFilters() {
-  return {
-    from: document.getElementById('filterFrom').value,
-    to:   document.getElementById('filterTo').value,
-    dateType: document.getElementById('filterDateType').value
-  };
-}
-
-function parseDate(str) {
-  if (!str) return null;
-  // Try DD/MM/YYYY and YYYY-MM-DD
-  if (str.includes('/')) {
-    const [d,m,y] = str.split('/');
-    return new Date(`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`);
-  }
-  return new Date(str);
-}
-
-function inRange(dateStr, from, to) {
-  const d = parseDate(dateStr);
-  if (!d || isNaN(d)) return true;
-  if (from && d < new Date(from)) return false;
-  if (to && d > new Date(to+'T23:59:59')) return false;
+function inRange(ds,from,to){
+  const d=pd(ds); if(!d||isNaN(d)) return true;
+  if(from && d<new Date(from)) return false;
+  if(to && d>new Date(to+'T23:59:59')) return false;
   return true;
 }
 
-function filteredTraffic() {
-  const { from, to } = getFilters();
-  if (!from && !to) return STATE.traffic;
-  return STATE.traffic.filter(r => {
-    const d = r['Day'] || r['Data'] || '';
-    return inRange(d, from, to);
-  });
-}
+const gf = ()=>({ from:document.getElementById('fFrom').value, to:document.getElementById('fTo').value, type:document.getElementById('fType').value });
 
-function filteredLeads() {
-  const { from, to, dateType } = getFilters();
-  if (!from && !to) return STATE.leads;
-  return STATE.leads.filter(r => {
-    const d = dateType === 'status' ? (r['Data Alteração'] || r['Data'] || '') : (r['Data'] || '');
-    return inRange(d, from, to);
-  });
-}
+function fTraffic(){ const{from,to}=gf(); if(!from&&!to) return S.traffic; return S.traffic.filter(r=>inRange(r['Day']||r['Data']||'',from,to)); }
+function fLeads(){  const{from,to,type}=gf(); if(!from&&!to) return S.leads;  return S.leads.filter(r=>inRange(type==='status'?(r['Data Alteração']||r['Data']||''):(r['Data']||''),from,to)); }
+function fKommo(){ const{from,to,type}=gf(); if(!from&&!to) return S.kommo;  return S.kommo.filter(l=>inRange(type==='status'?(l.stage_date||l.entry_date||''):(l.entry_date||''),from,to)); }
 
-function applyFilters() { renderAll(); }
+function applyFilters(){ renderAll(); }
 
-// =============================================
-// HELPERS
-// =============================================
-const R = (v, d=0) => isNaN(v)||!isFinite(v)?0:Number(v.toFixed(d));
-const fmtBRL = v => v == null ? '—' : 'R$ '+R(v,0).toLocaleString('pt-BR');
-const fmtN   = v => v == null ? '—' : R(v,0).toLocaleString('pt-BR');
-const fmtPct = v => v == null ? '—' : R(v,1).toLocaleString('pt-BR')+'%';
-const fmtCur = v => v == null ? '—' : 'R$'+R(v,2).toLocaleString('pt-BR');
-
-function delta(real, plan) {
-  if (!plan || plan === 0) return null;
-  return ((real - plan) / Math.abs(plan)) * 100;
-}
-function deltaClass(v) {
-  if (v === null) return 'neu';
-  return v >= 0 ? 'pos' : 'neg';
-}
-function deltaStr(v) {
-  if (v === null) return '—';
-  return (v >= 0 ? '+' : '') + R(v,1) + '%';
-}
-
-function sumField(arr, field) {
-  return arr.reduce((acc, r) => {
-    const v = parseFloat((r[field]||'').toString().replace(/[R$\s.]/g,'').replace(',','.'));
-    return acc + (isNaN(v) ? 0 : v);
-  }, 0);
-}
-
-function getWeekLabel(dateStr) {
-  const d = parseDate(dateStr);
-  if (!d || isNaN(d)) return null;
-  const jan1 = new Date(d.getFullYear(), 0, 1);
-  const week = Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
-  return `S${week}`;
-}
-
-function getMonthLabel(dateStr) {
-  const d = parseDate(dateStr);
-  if (!d || isNaN(d)) return null;
-  return d.toLocaleString('pt-BR', { month: 'short', year: '2-digit' });
-}
-
-// =============================================
-// AGGREGATE DATA
-// =============================================
-function aggregateTraffic(rows) {
-  return {
-    investimento: sumField(rows, 'Amount Spent'),
-    impressoes: sumField(rows, 'Impressions'),
-    cliques: sumField(rows, 'Clicks (All)'),
-    linkCliques: sumField(rows, 'Link Clicks'),
-    leads_traf: sumField(rows, 'Messaging Conversations Started') + sumField(rows, 'Leads') + sumField(rows, 'Website Contacts'),
-    views3s: sumField(rows, '3 sec views'),
-    frequencia: rows.length ? sumField(rows,'Frequência') / rows.length : 0,
+// PLANNING — picks months overlapping the filter range
+function getPlan(){
+  const{from,to}=gf();
+  let rows=S.planning;
+  if(from||to){
+    const fd=from?new Date(from):null, td=to?new Date(to):null;
+    const filtered=S.planning.filter(r=>{
+      const ds=r['Data']||r['Mês']||Object.values(r)[0]||'';
+      const d=pd(ds); if(!d||isNaN(d)) return false;
+      const ms=new Date(d.getFullYear(),d.getMonth(),1);
+      const me=new Date(d.getFullYear(),d.getMonth()+1,0);
+      if(fd && me<new Date(fd.getFullYear(),fd.getMonth(),1)) return false;
+      if(td && ms>new Date(td.getFullYear(),td.getMonth()+1,0)) return false;
+      return true;
+    });
+    if(filtered.length) rows=filtered;
+  }
+  const norm=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  function pf(field){
+    const keys=Object.keys(rows[0]||{});
+    const k=keys.find(k=>norm(k).includes(norm(field)));
+    return k?sf(rows,k):0;
+  }
+  return{
+    investimento:pf('investimento')||pf('invest')||0,
+    leads:pf('leads')||0, mql:pf('mql')||0, sql:pf('sql')||0,
+    agendamentos:pf('agendamento')||0, r1:pf('r1 realizada')||pf('r1')||0,
+    r2:pf('r2 realizada')||pf('r2')||0, vendas:pf('vendas')||pf('venda')||0,
+    faturamento:pf('faturamento')||pf('mrr')||0,
+    impressoes:pf('impressoes')||pf('impressao')||0, cliques:pf('cliques')||0,
+    cpl:0,cpc:0,cpm:0,ctr:0,cpmql:0,cpsql:0,cpag:0,cpr1:0,cpr2:0,cpv:0,
+    pct_mql:0,pct_sql:0,pct_ag:0,pct_r1:0,pct_r2:0
   };
 }
 
-function aggregateLeads(rows) {
-  const total = rows.length;
-  const mql = rows.filter(r => {
-    const q = (r['Qualificação']||'').toLowerCase();
-    return q && q !== 'não qualificado' && q !== 'desqualificado' && q !== '';
-  }).length;
-  const sql = rows.filter(r => {
-    const nivel = (r['Nível Qualificação']||'').toUpperCase();
-    return nivel === 'A' || nivel === 'B';
-  }).length;
-  const mqla = rows.filter(r => (r['Nível Qualificação']||'').toUpperCase() === 'A').length;
-  return { total, mql, sql, mqla };
+// HELPERS
+const Rn=(v,d=0)=>isNaN(v)||!isFinite(v)?0:Number(v.toFixed(d));
+const brl=v=>v==null?'—':'R$ '+Rn(v,0).toLocaleString('pt-BR');
+const nn=v=>v==null?'—':Rn(v,0).toLocaleString('pt-BR');
+const pct=v=>v==null?'—':Rn(v,1).toLocaleString('pt-BR')+'%';
+function delt(r,p){ if(!p||p===0) return null; return((r-p)/Math.abs(p))*100; }
+function dc(v){ return v===null?'neu':v>=0?'pos':'neg'; }
+function ds(v){ if(v===null) return '—'; return(v>=0?'+':'')+Rn(v,1)+'%'; }
+function db(v){ return `<span class="badge ${dc(v)}">${ds(v)}</span>`; }
+
+function sf(arr,field){
+  return arr.reduce((a,r)=>{
+    const raw=(r[field]||'').toString().replace(/[R$\s]/g,'').replace(/\./g,'').replace(',','.');
+    const v=parseFloat(raw); return a+(isNaN(v)?0:v);
+  },0);
 }
 
-function getKommoPipelineData() {
-  const stages = ['Em contato inicial','Em Atendimento','Grupo Imersão','R1 Marcada','R1 Realizada','R2 Marcada','R2 Realizada','Negociação','Venda'];
-  const grouped = {};
-  stages.forEach(s => grouped[s] = []);
-  STATE.kommo.forEach(lead => {
-    const stage = lead.stage || '';
-    if (grouped[stage]) grouped[stage].push(lead);
-  });
-  return { stages, grouped };
+function aTraffic(rows){
+  return{
+    investimento:sf(rows,'Amount Spent'), impressoes:sf(rows,'Impressions'),
+    cliques:sf(rows,'Clicks (All)'), linkCliques:sf(rows,'Link Clicks'),
+    leads_traf:sf(rows,'Messaging Conversations Started')+sf(rows,'Leads')+sf(rows,'Website Contacts'),
+  };
 }
 
-// =============================================
+function aLeads(rows){
+  const total=rows.length;
+  const mql=rows.filter(r=>{const q=(r['Qualificação']||'').toLowerCase();return q&&q!=='não qualificado'&&q!=='desqualificado'&&q!=='';}).length;
+  const sql=rows.filter(r=>['A','B'].includes((r['Nível Qualificação']||'').toUpperCase())).length;
+  const mqla=rows.filter(r=>(r['Nível Qualificação']||'').toUpperCase()==='A').length;
+  return{total,mql,sql,mqla};
+}
+
+// KOMMO STAGES
+const STAGES=['Em contato inicial','Em Atendimento','Grupo Imersão','R1 Marcada','R1 Realizada','R2 Marcada','R2 Realizada','Negociação','Venda'];
+
+function cStage(stage,arr){ // cumulative
+  const si=STAGES.indexOf(stage); if(si===-1) return(arr||fKommo()).filter(l=>l.stage===stage).length;
+  return(arr||fKommo()).filter(l=>STAGES.indexOf(l.stage)>=si).length;
+}
+function cExact(stage,arr){ return(arr||fKommo()).filter(l=>l.stage===stage).length; }
+
+function getMRR(arr){
+  return(arr||fKommo()).filter(l=>STAGES.indexOf(l.stage)>=STAGES.indexOf('Venda'))
+    .reduce((a,l)=>{const raw=(l.mrr||'0').toString().replace(/[R$\s]/g,'').replace(/\./g,'').replace(',','.');return a+(parseFloat(raw)||0);},0);
+}
+
 // RENDER ALL
-// =============================================
-function renderAll() {
-  renderPage1();
-  renderPage2();
-  renderPage3();
-  renderPage4();
-  renderPage5();
-}
+function renderAll(){ renderP1(); renderP2(); renderP3(); renderP4(); renderP5(); }
 
-// =============================================
-// PAGE 1: VISÃO GERAL
-// =============================================
-function renderPage1() {
-  const tr = filteredTraffic();
-  const leads = filteredLeads();
-  const ta = aggregateTraffic(tr);
-  const la = aggregateLeads(leads);
+// PAGE 1
+function renderP1(){
+  const tr=fTraffic(), ld=fLeads(), km=fKommo();
+  const ta=aTraffic(tr), la=aLeads(ld), plan=getPlan();
+  const rl=km.length>0?km.length:(ta.leads_traf||la.total);
+  const rmql=la.mql, r1r=cStage('R1 Realizada',km), r2r=cStage('R2 Realizada',km);
+  const rv=cStage('Venda',km), rf=getMRR(km), inv=ta.investimento;
 
-  // Planning for current period
-  const plan = getPlanningAgg();
+  document.getElementById('p1top').innerHTML=[
+    {l:'Investimento',v:brl(inv),p:brl(plan.investimento),d:delt(inv,plan.investimento)},
+    {l:'Leads',v:nn(rl),p:nn(plan.leads),d:delt(rl,plan.leads)},
+    {l:'Leads Qualificados',v:nn(rmql),p:nn(plan.mql),d:delt(rmql,plan.mql)},
+    {l:'R1 Realizadas',v:nn(r1r),p:nn(plan.r1),d:delt(r1r,plan.r1)},
+    {l:'R2 Realizadas',v:nn(r2r),p:nn(plan.r2),d:delt(r2r,plan.r2)},
+    {l:'Vendas',v:nn(rv),p:nn(plan.vendas),d:delt(rv,plan.vendas)},
+    {l:'Faturamento',v:brl(rf),p:brl(plan.faturamento),d:delt(rf,plan.faturamento)},
+    {l:'MRR Adicionado',v:brl(rf),p:'—',d:null},
+  ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div><div class="km"><span class="kp">Meta: <b>${k.p}</b></span>${db(k.d)}</div></div>`).join('');
 
-  // Leads: use Kommo total as primary, fallback to traffic/sheets data
-  const kommoTotal = getKommoLeadsTotal();
-  const realLeads = kommoTotal > 0 ? kommoTotal : (ta.leads_traf || la.total);
-  const realR1m = countKommoStage('R1 Marcada');
-  const realR1r = countKommoStage('R1 Realizada');
-  const realR2m = countKommoStage('R2 Marcada');
-  const realR2r = countKommoStage('R2 Realizada');
-  const realVendas = countKommoStage('Venda');
-  const realFat = getMRRTotal();
-  const cac = realVendas > 0 ? ta.investimento / realVendas : 0;
-  const roas = ta.investimento > 0 ? realFat / ta.investimento : 0;
-  const ticket = realVendas > 0 ? realFat / realVendas : 0;
+  const cac=rv>0?inv/rv:0, roas=inv>0?rf/inv:0, tick=rv>0?rf/rv:0, cpl=rl>0?inv/rl:0, cplq=rmql>0?inv/rmql:0;
+  document.getElementById('p1fin').innerHTML=[
+    {l:'CAC',v:brl(cac)},{l:'ROAS',v:Rn(roas,2)+'x'},{l:'Ticket Médio',v:brl(tick)},{l:'CPL',v:brl(cpl)},{l:'CPLQ',v:brl(cplq)}
+  ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div></div>`).join('');
 
-  const kpisTop = [
-    { label:'Investimento', val: fmtBRL(ta.investimento), plan: fmtBRL(plan.investimento), d: delta(ta.investimento, plan.investimento) },
-    { label:'Leads', val: fmtN(realLeads), plan: fmtN(plan.leads), d: delta(realLeads, plan.leads) },
-    { label:'Leads Qualificados', val: fmtN(la.mql), plan: fmtN(plan.mql), d: delta(la.mql, plan.mql) },
-    { label:'R1 Realizadas', val: fmtN(realR1r), plan: fmtN(plan.r1), d: delta(realR1r, plan.r1) },
-    { label:'R2 Realizadas', val: fmtN(realR2r), plan: fmtN(plan.r2), d: delta(realR2r, plan.r2) },
-    { label:'Vendas', val: fmtN(realVendas), plan: fmtN(plan.vendas), d: delta(realVendas, plan.vendas) },
-    { label:'Faturamento', val: fmtBRL(realFat), plan: fmtBRL(plan.faturamento), d: delta(realFat, plan.faturamento) },
-    { label:'MRR Adicionado', val: fmtBRL(getMRRTotal()), plan: '—', d: null },
-  ];
-
-  document.getElementById('p1-kpis-top').innerHTML = kpisTop.map(k => `
-    <div class="kpi ${k.label==='Vendas'?'kpi-accent':''}">
-      <div class="label">${k.label}</div>
-      <div class="value">${k.val}</div>
-      <div class="row">
-        <span class="plan">Meta: <span>${k.plan}</span></span>
-        <span class="delta ${deltaClass(k.d)}">${deltaStr(k.d)}</span>
-      </div>
-    </div>`).join('');
-
-  const kpiFin = [
-    { label:'CAC', val: fmtBRL(cac) },
-    { label:'ROAS', val: R(roas,2)+'x' },
-    { label:'Ticket Médio', val: fmtBRL(ticket) },
-    { label:'CPL', val: fmtBRL(realLeads > 0 ? ta.investimento/realLeads : 0) },
-    { label:'CPLQ', val: fmtBRL(la.mql > 0 ? ta.investimento/la.mql : 0) },
-  ];
-  document.getElementById('p1-kpis-fin').innerHTML = kpiFin.map(k => `
-    <div class="kpi">
-      <div class="label">${k.label}</div>
-      <div class="value">${k.val}</div>
-    </div>`).join('');
-
-  renderFunnelCards();
-}
-
-function renderFunnelCards() {
-  const stages = ['R1 Marcada','Grupo Imersão','R2 Marcada','R2 Realizada'];
-  const { grouped } = getKommoPipelineData();
-  document.getElementById('p1-funnel-cards').innerHTML = stages.map(s => {
-    const leads = grouped[s] || [];
-    return `
-      <div class="funnel-card">
-        <h4>${s} <span class="count">${leads.length}</span></h4>
-        ${leads.length === 0
-          ? '<div style="color:var(--text3);font-size:12px;">Nenhum lead nesta etapa</div>'
-          : leads.map(l => `
-            <div class="lead-item">
-              <div class="name">${l.name || '—'}</div>
-              <div class="info">${l.phone || ''} ${l.instagram ? '· @'+l.instagram : ''}</div>
-              <div class="info">${l.mrr ? 'MRR: R$'+l.mrr : ''} ${l.entry_date ? '· Entrada: '+l.entry_date : ''}</div>
-            </div>`).join('')}
-      </div>`;
+  document.getElementById('p1cards').innerHTML=['R1 Marcada','Grupo Imersão','R2 Marcada','R2 Realizada'].map(stage=>{
+    const leads=km.filter(l=>l.stage===stage);
+    return`<div class="fc"><div class="fc-hd"><h4>${stage}</h4><span class="fc-count">${leads.length}</span></div>
+      <div class="fc-body">${leads.length===0?'<div class="empty-s">Nenhum lead aqui</div>':leads.map(l=>`<div class="lead-row"><div class="lead-name">${l.name||'—'}</div><div class="lead-info">${[l.phone,l.instagram?'@'+l.instagram:''].filter(Boolean).join(' · ')}</div><div class="lead-info">${l.mrr?'MRR: R$'+l.mrr:''} ${l.entry_date?'· '+l.entry_date:''}</div></div>`).join('')}</div></div>`;
   }).join('');
 }
 
-// =============================================
-// PAGE 2: TOTAIS (COMP TABLE)
-// =============================================
-function renderPage2() {
-  const tr = filteredTraffic();
-  const leads = filteredLeads();
-  const ta = aggregateTraffic(tr);
-  const la = aggregateLeads(leads);
-  const plan = getPlanningAgg();
+// PAGE 2
+function renderP2(){
+  const tr=fTraffic(), ld=fLeads(), km=fKommo();
+  const ta=aTraffic(tr), la=aLeads(ld), plan=getPlan();
+  const rl=km.length>0?km.length:(ta.leads_traf||la.total);
+  const inv=ta.investimento, imp=ta.impressoes, cl=ta.cliques;
+  const mql=la.mql, sql=la.sql;
+  const r1m=cStage('R1 Marcada',km), r1r=cStage('R1 Realizada',km);
+  const r2m=cStage('R2 Marcada',km), r2r=cStage('R2 Realizada',km);
+  const rv=cStage('Venda',km);
+  const cpm_r=imp>0?(inv/imp)*1000:0, cpc_r=cl>0?inv/cl:0, ctr_r=imp>0?(cl/imp)*100:0;
+  const cpl_r=rl>0?inv/rl:0, cpmql=mql>0?inv/mql:0, cpsql=sql>0?inv/sql:0;
+  const cpag=r1m>0?inv/r1m:0, cpr1=r1r>0?inv/r1r:0, cpr2=r2r>0?inv/r2r:0, cpv=rv>0?inv/rv:0;
+  const pm=rl>0?(mql/rl)*100:0, ps=mql>0?(sql/mql)*100:0, pa=rl>0?(r1m/rl)*100:0;
+  const p1=r1m>0?(r1r/r1m)*100:0, p2=r2m>0?(r2r/r2m)*100:0;
 
-  const kommoTotal2 = getKommoLeadsTotal();
-  const realLeads = kommoTotal2 > 0 ? kommoTotal2 : (ta.leads_traf || la.total);
-  const realR1m = countKommoStage('R1 Marcada');
-  const realR1r = countKommoStage('R1 Realizada');
-  const realR2r = countKommoStage('R2 Realizada');
-  const realVendas = countKommoStage('Venda');
-  const inv = ta.investimento;
-  const imp = ta.impressoes;
-  const cliques = ta.cliques;
-  const cpm_r = imp > 0 ? (inv/imp)*1000 : 0;
-  const cpc_r = cliques > 0 ? inv/cliques : 0;
-  const ctr_r = imp > 0 ? (cliques/imp)*100 : 0;
-  const cpl_r = realLeads > 0 ? inv/realLeads : 0;
-  const cpmql = la.mql > 0 ? inv/la.mql : 0;
-  const cpsql = la.sql > 0 ? inv/la.sql : 0;
-  const cpag = realR1m > 0 ? inv/realR1m : 0;
-  const cpr1 = realR1r > 0 ? inv/realR1r : 0;
-  const cpr2 = realR2r > 0 ? inv/realR2r : 0;
-  const cpv = realVendas > 0 ? inv/realVendas : 0;
-  const pct_mql = realLeads > 0 ? (la.mql/realLeads)*100 : 0;
-  const pct_sql = la.mql > 0 ? (la.sql/la.mql)*100 : 0;
-  const pct_ag = realLeads > 0 ? (realR1m/realLeads)*100 : 0;
-  const pct_r1 = realR1m > 0 ? (realR1r/realR1m)*100 : 0;
-  const pct_r2 = countKommoStage('R2 Marcada') > 0 ? (realR2r/countKommoStage('R2 Marcada'))*100 : 0;
-
-  function pRow(metric, pv, rv, pCost, rCost, pPct, rPct, fmt=fmtN, fmtC=fmtBRL) {
-    const dv = delta(rv, pv);
-    const dc = delta(rCost, pCost);
-    const dp = delta(rPct, pPct);
-    return `<tr>
-      <td>${metric}</td>
-      <td>${fmt(pv)}</td>
-      <td>${fmt(rv)}</td>
-      <td class="delta-cell ${deltaClass(dv)}">${deltaStr(dv)}</td>
-      <td>${fmtC(pCost)}</td>
-      <td>${fmtC(rCost)}</td>
-      <td class="delta-cell ${deltaClass(dc)}">${deltaStr(dc)}</td>
-      <td>${pPct!=null?fmtPct(pPct):'—'}</td>
-      <td>${rPct!=null?fmtPct(rPct):'—'}</td>
-      <td class="delta-cell ${deltaClass(dp)}">${deltaStr(dp)}</td>
-    </tr>`;
+  function row(m,pv,rv2,pc,rc,pp,rp,fv=nn,fc=brl){
+    const dv=delt(rv2,pv),dcc=delt(rc,pc),dp=delt(rp,pp);
+    return`<tr><td>${m}</td><td>${fv(pv)}</td><td>${fv(rv2)}</td><td>${db(dv)}</td><td>${pc!=null?fc(pc):'—'}</td><td>${rc!=null?fc(rc):'—'}</td><td>${pc!=null?db(dcc):'—'}</td><td>${pp!=null?pct(pp):'—'}</td><td>${rp!=null?pct(rp):'—'}</td><td>${pp!=null?db(dp):'—'}</td></tr>`;
   }
-
-  const html = `<table class="comp-table">
-    <thead>
-      <tr>
-        <th>Métrica</th>
-        <th>Planejado</th><th>Realizado</th><th>Δ%</th>
-        <th>Custo Plan.</th><th>Custo Real.</th><th>Δ%</th>
-        <th>% Plan.</th><th>% Real.</th><th>Δ%</th>
-      </tr>
-    </thead>
+  document.getElementById('p2tbl').innerHTML=`<table class="dt">
+    <thead><tr><th>Métrica</th><th>Plan.</th><th>Real.</th><th>Δ</th><th>Custo Plan.</th><th>Custo Real.</th><th>Δ</th><th>% Plan.</th><th>% Real.</th><th>Δ</th></tr></thead>
     <tbody>
-      ${pRow('Investimento', plan.investimento, inv, null, null, null, null, fmtBRL, ()=>'—')}
-      ${pRow('Impressões', plan.impressoes, imp, plan.cpm, cpm_r, null, null, fmtN, fmtBRL)}
-      ${pRow('Cliques', plan.cliques, cliques, plan.cpc, cpc_r, plan.ctr, ctr_r)}
-      ${pRow('Leads', plan.leads, realLeads, plan.cpl, cpl_r, null, null)}
-      ${pRow('MQL', plan.mql, la.mql, plan.cpmql, cpmql, plan.pct_mql, pct_mql)}
-      ${pRow('SQL', plan.sql, la.sql, plan.cpsql, cpsql, plan.pct_sql, pct_sql)}
-      ${pRow('Agendamentos (R1)', plan.agendamentos, realR1m, plan.cpag, cpag, plan.pct_ag, pct_ag)}
-      ${pRow('R1 Realizada', plan.r1, realR1r, plan.cpr1, cpr1, plan.pct_r1, pct_r1)}
-      ${pRow('R2 Realizada', plan.r2, realR2r, plan.cpr2, cpr2, plan.pct_r2, pct_r2)}
-      ${pRow('Vendas', plan.vendas, realVendas, plan.cpv, cpv, null, null)}
-    </tbody>
-  </table>`;
-  document.getElementById('p2-table-wrap').innerHTML = html;
+      ${row('Investimento',plan.investimento,inv,null,null,null,null,brl)}
+      ${row('Impressões',plan.impressoes,imp,plan.cpm,cpm_r,null,null)}
+      ${row('Cliques',plan.cliques,cl,plan.cpc,cpc_r,plan.ctr,ctr_r)}
+      ${row('Leads',plan.leads,rl,plan.cpl,cpl_r,null,null)}
+      ${row('MQL',plan.mql,mql,plan.cpmql,cpmql,plan.pct_mql,pm)}
+      ${row('SQL',plan.sql,sql,plan.cpsql,cpsql,plan.pct_sql,ps)}
+      ${row('Agendamentos R1',plan.agendamentos,r1m,plan.cpag,cpag,plan.pct_ag,pa)}
+      ${row('R1 Realizada',plan.r1,r1r,plan.cpr1,cpr1,plan.pct_r1,p1)}
+      ${row('R2 Realizada',plan.r2,r2r,plan.cpr2,cpr2,plan.pct_r2,p2)}
+      ${row('Vendas',plan.vendas,rv,plan.cpv,cpv,null,null)}
+    </tbody></table>`;
 }
 
-// =============================================
-// PAGE 3: SEMANAS
-// =============================================
-function renderPage3() {
-  const { labels, rows } = buildPeriodicData('week');
-  renderPeriodicTable('p3-table-wrap', labels, rows);
-  renderWeeklyChart();
+// PERIOD UTILS
+function wKey(ds){
+  const d=pd(ds); if(!d||isNaN(d)) return null;
+  const y=d.getFullYear(), jan1=new Date(y,0,1);
+  const w=Math.ceil(((d-jan1)/86400000+jan1.getDay()+1)/7);
+  // Sort key: YYYY-WW so sorting by key gives chronological order
+  return{key:`${y}-${String(w).padStart(2,'0')}`,label:`S${w}`,sort:`${y}${String(w).padStart(2,'0')}`};
+}
+function mKey(ds){
+  const d=pd(ds); if(!d||isNaN(d)) return null;
+  const y=d.getFullYear(),m=d.getMonth();
+  const names=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  return{key:`${y}-${String(m+1).padStart(2,'0')}`,label:`${names[m]}/${String(y).slice(2)}`,sort:`${y}${String(m+1).padStart(2,'0')}`};
 }
 
-function renderPage4() {
-  const { labels, rows } = buildPeriodicData('month');
-  renderPeriodicTable('p4-table-wrap', labels, rows);
-  renderMonthlyChart();
+function buildPeriod(period){
+  const gk=period==='week'?wKey:mKey;
+  const tP={}, lP={}, kP={};
+  S.traffic.forEach(r=>{const k=gk(r['Day']||r['Data']||'');if(!k)return;if(!tP[k.key])tP[k.key]={meta:k,rows:[]};tP[k.key].rows.push(r);});
+  S.leads.forEach(r=>{const k=gk(r['Data']||'');if(!k)return;if(!lP[k.key])lP[k.key]={meta:k,rows:[]};lP[k.key].rows.push(r);});
+  S.kommo.forEach(l=>{const k=gk(l.entry_date||'');if(!k)return;if(!kP[k.key])kP[k.key]={meta:k,leads:[]};kP[k.key].leads.push(l);});
+
+  // Sort chronologically
+  const allKeys=[...new Set([...Object.keys(tP),...Object.keys(lP),...Object.keys(kP)])].sort();
+  const labels=allKeys.map(k=>(tP[k]||lP[k]||kP[k]).meta.label);
+  const metrics=['Investimento','Impressões','Cliques','CPM','CPC','Leads','CPL','MQL','% Qualificação','Custo MQL','Respostas','% Respostas','SQL','Custo SQL','R1 Marcada','R1 Realizada','% Comparecimento R1','Custo R1','R2 Marcada','R2 Realizada','% Comparecimento R2','Faturamento','CAC','MRR Adicionado'];
+  const rows={};
+  metrics.forEach(m=>rows[m]={});
+
+  allKeys.forEach((key,i)=>{
+    const lbl=labels[i];
+    const tr=(tP[key]||{}).rows||[], lr=(lP[key]||{}).rows||[], km=(kP[key]||{}).leads||[];
+    const ta=aTraffic(tr), la=aLeads(lr);
+    const inv=ta.investimento, imp=ta.impressoes, cl=ta.cliques;
+    const lds=km.length>0?km.length:(ta.leads_traf||lr.length);
+    const mql=la.mql, sql=la.sql;
+    const r1m=cStage('R1 Marcada',km), r1r=cStage('R1 Realizada',km);
+    const r2m=cStage('R2 Marcada',km), r2r=cStage('R2 Realizada',km);
+    const vnd=cStage('Venda',km), fat=getMRR(km), cac=vnd>0?inv/vnd:0;
+
+    rows['Investimento'][lbl]=brl(inv); rows['Impressões'][lbl]=nn(imp); rows['Cliques'][lbl]=nn(cl);
+    rows['CPM'][lbl]=brl(imp>0?(inv/imp)*1000:0); rows['CPC'][lbl]=brl(cl>0?inv/cl:0);
+    rows['Leads'][lbl]=nn(lds); rows['CPL'][lbl]=brl(lds>0?inv/lds:0);
+    rows['MQL'][lbl]=nn(mql); rows['% Qualificação'][lbl]=pct(lds>0?(mql/lds)*100:0);
+    rows['Custo MQL'][lbl]=brl(mql>0?inv/mql:0);
+    rows['Respostas'][lbl]=nn(lr.length); rows['% Respostas'][lbl]=pct(lds>0?(lr.length/lds)*100:0);
+    rows['SQL'][lbl]=nn(sql); rows['Custo SQL'][lbl]=brl(sql>0?inv/sql:0);
+    rows['R1 Marcada'][lbl]=nn(r1m); rows['R1 Realizada'][lbl]=nn(r1r);
+    rows['% Comparecimento R1'][lbl]=pct(r1m>0?(r1r/r1m)*100:0); rows['Custo R1'][lbl]=brl(r1r>0?inv/r1r:0);
+    rows['R2 Marcada'][lbl]=nn(r2m); rows['R2 Realizada'][lbl]=nn(r2r);
+    rows['% Comparecimento R2'][lbl]=pct(r2m>0?(r2r/r2m)*100:0);
+    rows['Faturamento'][lbl]=brl(fat); rows['CAC'][lbl]=brl(cac); rows['MRR Adicionado'][lbl]=brl(fat);
+  });
+  return{labels,rows,allKeys,tP,lP,kP};
 }
 
-function buildPeriodicData(period) {
-  const getLabel = period === 'week' ? getWeekLabel : getMonthLabel;
-  const tr = STATE.traffic;
-  const leads = STATE.leads;
-
-  // Group traffic by period
-  const trafByPeriod = {};
-  tr.forEach(r => {
-    const lbl = getLabel(r['Day'] || r['Data'] || '');
-    if (!lbl) return;
-    if (!trafByPeriod[lbl]) trafByPeriod[lbl] = [];
-    trafByPeriod[lbl].push(r);
-  });
-
-  // Group leads by period
-  const leadsByPeriod = {};
-  leads.forEach(r => {
-    const lbl = getLabel(r['Data'] || '');
-    if (!lbl) return;
-    if (!leadsByPeriod[lbl]) leadsByPeriod[lbl] = [];
-    leadsByPeriod[lbl].push(r);
-  });
-
-  const allLabels = [...new Set([...Object.keys(trafByPeriod), ...Object.keys(leadsByPeriod)])].sort();
-
-  const rows = {};
-  const metrics = ['Investimento','Impressões','Cliques','CPM','CPC','Leads','CPL','MQL','% Qualificação','Custo MQL','Respostas','% Respostas','SQL','Custo SQL','R1 Marcada','R1 Realizada','% Comparecimento R1','Custo R1','R2 Marcada','R2 Realizada','% Comparecimento R2','Faturamento','CAC','MRR Adicionado'];
-  metrics.forEach(m => rows[m] = {});
-
-  allLabels.forEach(lbl => {
-    const tRows = trafByPeriod[lbl] || [];
-    const lRows = leadsByPeriod[lbl] || [];
-    const ta = aggregateTraffic(tRows);
-    const la = aggregateLeads(lRows);
-    const inv = ta.investimento, imp = ta.impressoes, cl = ta.cliques, lds = ta.leads_traf || lRows.length;
-    const mql = la.mql, sql = la.sql;
-    const cpm = imp>0?(inv/imp)*1000:0, cpc=cl>0?inv/cl:0, cpl=lds>0?inv/lds:0;
-    const cpmql = mql>0?inv/mql:0, cpsql = sql>0?inv/sql:0;
-    const pctq = lds>0?(mql/lds)*100:0;
-
-    rows['Investimento'][lbl] = fmtBRL(inv);
-    rows['Impressões'][lbl]   = fmtN(imp);
-    rows['Cliques'][lbl]      = fmtN(cl);
-    rows['CPM'][lbl]          = fmtBRL(cpm);
-    rows['CPC'][lbl]          = fmtBRL(cpc);
-    rows['Leads'][lbl]        = fmtN(lds);
-    rows['CPL'][lbl]          = fmtBRL(cpl);
-    rows['MQL'][lbl]          = fmtN(mql);
-    rows['% Qualificação'][lbl] = fmtPct(pctq);
-    rows['Custo MQL'][lbl]    = fmtBRL(cpmql);
-    rows['Respostas'][lbl]    = fmtN(lRows.length);
-    rows['% Respostas'][lbl]  = fmtPct(lds>0?(lRows.length/lds)*100:0);
-    rows['SQL'][lbl]          = fmtN(sql);
-    rows['Custo SQL'][lbl]    = fmtBRL(cpsql);
-    rows['R1 Marcada'][lbl]   = '—';
-    rows['R1 Realizada'][lbl] = '—';
-    rows['% Comparecimento R1'][lbl] = '—';
-    rows['Custo R1'][lbl]     = '—';
-    rows['R2 Marcada'][lbl]   = '—';
-    rows['R2 Realizada'][lbl] = '—';
-    rows['% Comparecimento R2'][lbl] = '—';
-    rows['Faturamento'][lbl]  = '—';
-    rows['CAC'][lbl]          = '—';
-    rows['MRR Adicionado'][lbl] = '—';
-  });
-
-  return { labels: allLabels, rows, metrics };
+function renderWT(id,labels,rows){
+  if(!labels.length){document.getElementById(id).innerHTML='<div class="ls">Nenhum dado no período.</div>';return;}
+  const ms=Object.keys(rows);
+  document.getElementById(id).innerHTML=`<table class="wt"><thead><tr><th>Métrica</th>${labels.map(l=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${ms.map(m=>`<tr><td>${m}</td>${labels.map(l=>`<td>${rows[m][l]||'—'}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
 
-function renderPeriodicTable(containerId, labels, rows) {
-  if (!labels.length) {
-    document.getElementById(containerId).innerHTML = '<div class="loading">Nenhum dado encontrado para o período.</div>';
-    return;
-  }
-  const metrics = Object.keys(rows);
-  const html = `<table class="data-table">
-    <thead><tr>
-      <th>Métrica</th>
-      ${labels.map(l=>`<th>${l}</th>`).join('')}
-    </tr></thead>
-    <tbody>
-      ${metrics.map(m=>`<tr>
-        <td>${m}</td>
-        ${labels.map(l=>`<td>${rows[m][l]||'—'}</td>`).join('')}
-      </tr>`).join('')}
-    </tbody>
-  </table>`;
-  document.getElementById(containerId).innerHTML = html;
-}
+function renderP3(){ const{labels,rows}=buildPeriod('week'); renderWT('p3tbl',labels,rows); renderWeeklyChart(); }
+function renderP4(){ const{labels,rows}=buildPeriod('month'); renderWT('p4tbl',labels,rows); renderMonthlyChart(); }
 
-function buildChartData(period, metricKey) {
-  const getLabel = period === 'week' ? getWeekLabel : getMonthLabel;
-  const trafByPeriod = {};
-  const leadsByPeriod = {};
-  STATE.traffic.forEach(r => {
-    const l = getLabel(r['Day']||r['Data']||''); if(!l)return;
-    if(!trafByPeriod[l])trafByPeriod[l]=[];
-    trafByPeriod[l].push(r);
-  });
-  STATE.leads.forEach(r => {
-    const l = getLabel(r['Data']||''); if(!l)return;
-    if(!leadsByPeriod[l])leadsByPeriod[l]=[];
-    leadsByPeriod[l].push(r);
-  });
-  const labels = [...new Set([...Object.keys(trafByPeriod),...Object.keys(leadsByPeriod)])].sort();
-  const data = labels.map(lbl => {
-    const tr = trafByPeriod[lbl]||[];
-    const lr = leadsByPeriod[lbl]||[];
-    const ta = aggregateTraffic(tr);
-    const la = aggregateLeads(lr);
-    const inv=ta.investimento, lds=ta.leads_traf||lr.length, mql=la.mql;
-    if(metricKey==='investimento') return inv;
-    if(metricKey==='faturamento') return getMRRTotal(); // approximation
-    if(metricKey==='leads') return lds;
-    if(metricKey==='leads_qual') return mql;
-    if(metricKey==='cpl') return lds>0?inv/lds:0;
-    if(metricKey==='cplq') return mql>0?inv/mql:0;
-    if(metricKey==='vendas') return countKommoStage('Venda');
+// CHARTS
+function chartData(period,metric){
+  const gk=period==='week'?wKey:mKey;
+  const tP={},lP={},kP={};
+  S.traffic.forEach(r=>{const k=gk(r['Day']||r['Data']||'');if(!k)return;if(!tP[k.key])tP[k.key]={meta:k,rows:[]};tP[k.key].rows.push(r);});
+  S.leads.forEach(r=>{const k=gk(r['Data']||'');if(!k)return;if(!lP[k.key])lP[k.key]={meta:k,rows:[]};lP[k.key].rows.push(r);});
+  S.kommo.forEach(l=>{const k=gk(l.entry_date||'');if(!k)return;if(!kP[k.key])kP[k.key]={meta:k,leads:[]};kP[k.key].leads.push(l);});
+  const keys=[...new Set([...Object.keys(tP),...Object.keys(lP),...Object.keys(kP)])].sort();
+  const labels=keys.map(k=>(tP[k]||lP[k]||kP[k]).meta.label);
+  const data=keys.map(key=>{
+    const tr=(tP[key]||{}).rows||[],lr=(lP[key]||{}).rows||[],km=(kP[key]||{}).leads||[];
+    const ta=aTraffic(tr),la=aLeads(lr),inv=ta.investimento;
+    const lds=km.length>0?km.length:(ta.leads_traf||lr.length),mql=la.mql;
+    const vnd=cStage('Venda',km),fat=getMRR(km);
+    if(metric==='investimento') return inv;
+    if(metric==='faturamento')  return fat;
+    if(metric==='leads')        return lds;
+    if(metric==='leads_qual')   return mql;
+    if(metric==='cpl')          return lds>0?inv/lds:0;
+    if(metric==='cplq')         return mql>0?inv/mql:0;
+    if(metric==='vendas')       return vnd;
     return 0;
   });
-  return { labels, data };
+  return{labels,data};
 }
 
-let weeklyChartInst = null, monthlyChartInst = null;
-
-function renderWeeklyChart() {
-  const metric = document.getElementById('p3ChartMetric').value;
-  const { labels, data } = buildChartData('week', metric);
-  if (weeklyChartInst) weeklyChartInst.destroy();
-  const ctx = document.getElementById('weeklyChart').getContext('2d');
-  weeklyChartInst = new Chart(ctx, barChart(labels, data, metric));
+let wCI=null,mCI=null;
+function mkChart(ctx,labels,data){
+  return new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:'rgba(37,99,235,.75)',borderColor:'#2563eb',borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{family:'Inter',size:10}},grid:{color:'#e8ecf2'}},y:{ticks:{color:'#94a3b8',font:{family:'Inter',size:10}},grid:{color:'#e8ecf2'}}}}});
 }
-function renderMonthlyChart() {
-  const metric = document.getElementById('p4ChartMetric').value;
-  const { labels, data } = buildChartData('month', metric);
-  if (monthlyChartInst) monthlyChartInst.destroy();
-  const ctx = document.getElementById('monthlyChart').getContext('2d');
-  monthlyChartInst = new Chart(ctx, barChart(labels, data, metric));
-}
+function renderWeeklyChart(){ if(wCI) wCI.destroy(); const{labels,data}=chartData('week',document.getElementById('p3m').value); wCI=mkChart(document.getElementById('wChart').getContext('2d'),labels,data); }
+function renderMonthlyChart(){ if(mCI) mCI.destroy(); const{labels,data}=chartData('month',document.getElementById('p4m').value); mCI=mkChart(document.getElementById('mChart').getContext('2d'),labels,data); }
 
-function barChart(labels, data, metric) {
-  return {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: metric,
-        data,
-        backgroundColor: 'rgba(79,127,255,0.7)',
-        borderColor: '#4f7fff',
-        borderWidth: 1,
-        borderRadius: 4,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { color: '#8a93b0', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#1e2740' } },
-        y: { ticks: { color: '#8a93b0', font: { family: 'DM Mono', size: 10 } }, grid: { color: '#1e2740' } }
-      }
-    }
-  };
+// PAGE 5
+function renderP5(){
+  const tr=fTraffic(),ld=fLeads(),km=fKommo();
+  const ta=aTraffic(tr),la=aLeads(ld),plan=getPlan();
+  const rl=km.length>0?km.length:(ta.leads_traf||la.total);
+  const rv=cStage('Venda',km),inv=ta.investimento,rf=getMRR(km);
+
+  document.getElementById('p5kpis').innerHTML=[
+    {l:'Investimento',v:brl(inv),p:brl(plan.investimento),d:delt(inv,plan.investimento)},
+    {l:'Leads',v:nn(rl),p:nn(plan.leads),d:delt(rl,plan.leads)},
+    {l:'CPL',v:brl(rl>0?inv/rl:0),p:'—',d:null},
+    {l:'MQL',v:nn(la.mql),p:nn(plan.mql),d:delt(la.mql,plan.mql)},
+    {l:'Custo MQL',v:brl(la.mql>0?inv/la.mql:0),p:'—',d:null},
+    {l:'MQL A',v:nn(la.mqla),p:'—',d:null},
+    {l:'Custo MQL A',v:brl(la.mqla>0?inv/la.mqla:0),p:'—',d:null},
+    {l:'Vendas',v:nn(rv),p:nn(plan.vendas),d:delt(rv,plan.vendas)},
+  ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div><div class="km"><span class="kp">Meta: <b>${k.p}</b></span>${db(k.d)}</div></div>`).join('');
+
+  const cac=rv>0?inv/rv:0,roas=inv>0?rf/inv:0;
+  const r2r=cStage('R2 Realizada',km),r2m=cStage('R2 Marcada',km);
+  document.getElementById('p5fin').innerHTML=[
+    {l:'Faturamento',v:brl(rf)},{l:'CAC',v:brl(cac)},{l:'ROAS',v:Rn(roas,2)+'x'},{l:'Taxa Conv. R2→Venda',v:pct(r2m>0?(r2r/r2m)*100:0)}
+  ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div></div>`).join('');
+
+  rTrafTable('p5camp','campCards',tr,'Campaign Name','Campaign Status',ld,km);
+  rTrafTable('p5adset','adsetCards',tr,'Ad Set Name','Público Status',ld,km);
+  rTrafTable('p5ad','adCards',tr,'Ad Name','Criativo Status',ld,km);
 }
 
-// =============================================
-// PAGE 5: TRÁFEGO
-// =============================================
-function renderPage5() {
-  const tr = filteredTraffic();
-  const leads = filteredLeads();
-  const ta = aggregateTraffic(tr);
-  const la = aggregateLeads(leads);
-  const plan = getPlanningAgg();
-  const kommoTotal5 = getKommoLeadsTotal();
-  const realLeads = kommoTotal5 > 0 ? kommoTotal5 : (ta.leads_traf || la.total);
-  const realVendas = countKommoStage('Venda');
-  const inv = ta.investimento;
+function rTrafTable(tid,cid,tr,gf2,sf2,ld,km){
+  const groups={};
+  tr.forEach(r=>{const k=r[gf2]||'Desconhecido';if(!groups[k])groups[k]={rows:[],status:r[sf2]||''};groups[k].rows.push(r);});
+  let act=0,ina=0;
+  Object.values(groups).forEach(g=>/^(active|ativo|on)$/i.test((g.status||'').trim())?act++:ina++);
+  const days=[...new Set(tr.map(r=>r['Day']||r['Data']||'').filter(Boolean))].length||1;
+  if(cid) document.getElementById(cid).innerHTML=`<div class="ms green"><div class="msl">Ativos</div><div class="msv">${act}</div></div><div class="ms red"><div class="msl">Inativos</div><div class="msv">${ina}</div></div><div class="ms"><div class="msl">Média/dia</div><div class="msv">${brl(sf(tr,'Amount Spent')/days)}</div></div>`;
 
-  const kpis = [
-    { label:'Investimento', val:fmtBRL(inv), plan:fmtBRL(plan.investimento), d:delta(inv,plan.investimento) },
-    { label:'Leads', val:fmtN(realLeads), plan:fmtN(plan.leads), d:delta(realLeads,plan.leads) },
-    { label:'CPL', val:fmtBRL(realLeads>0?inv/realLeads:0), plan:fmtBRL(plan.cpl), d:delta(realLeads>0?inv/realLeads:0,plan.cpl) },
-    { label:'MQL', val:fmtN(la.mql), plan:fmtN(plan.mql), d:delta(la.mql,plan.mql) },
-    { label:'Custo MQL', val:fmtBRL(la.mql>0?inv/la.mql:0), plan:fmtBRL(plan.cpmql), d:null },
-    { label:'MQL A', val:fmtN(la.mqla), plan:'—', d:null },
-    { label:'Custo MQL A', val:fmtBRL(la.mqla>0?inv/la.mqla:0), plan:'—', d:null },
-    { label:'Vendas', val:fmtN(realVendas), plan:fmtN(plan.vendas), d:delta(realVendas,plan.vendas) },
-  ];
+  const rows=Object.entries(groups).map(([name,g])=>{
+    const ta=aTraffic(g.rows),inv=ta.investimento,nk=name.toLowerCase().slice(0,12);
+    const gl=ld.filter(l=>(l['utm_campaign']||l['utm_content']||'').toLowerCase().includes(nk)||nk.includes((l['utm_campaign']||'').toLowerCase().slice(0,8)));
+    const la=aLeads(gl);
+    const lds=ta.leads_traf||gl.length,mql=la.mql;
+    // Cross-reference Kommo — leads whose utm matches or whose name is in the group
+    const gk=km.filter(l=>(l.utm_campaign||l.utm_content||'').toLowerCase().includes(nk)||nk.includes((l.utm_campaign||'').toLowerCase().slice(0,8)));
+    const r1m=cStage('R1 Marcada',gk),r1r=cStage('R1 Realizada',gk);
+    const r2m=cStage('R2 Marcada',gk),r2r=cStage('R2 Realizada',gk),vnd=cStage('Venda',gk);
+    return{name,inv,lds,cpl:lds>0?inv/lds:0,mql,cplq:mql>0?inv/mql:0,r1m,r1r,r2m,r2r,vnd,status:g.status};
+  }).sort((a,b)=>b.inv-a.inv);
 
-  document.getElementById('p5-kpis').innerHTML = kpis.map(k=>`
-    <div class="kpi">
-      <div class="label">${k.label}</div>
-      <div class="value">${k.val}</div>
-      <div class="row">
-        <span class="plan">Meta: <span>${k.plan}</span></span>
-        <span class="delta ${deltaClass(k.d)}">${deltaStr(k.d)}</span>
-      </div>
-    </div>`).join('');
-
-  const realFat = getMRRTotal();
-  const cac = realVendas>0?inv/realVendas:0;
-  const roas = inv>0?realFat/inv:0;
-  const r2 = countKommoStage('R2 Realizada');
-  const r2m = countKommoStage('R2 Marcada')+r2;
-  const txR2 = r2m>0?(r2/r2m)*100:0;
-  document.getElementById('p5-kpis-fin').innerHTML = [
-    { label:'Faturamento', val:fmtBRL(realFat) },
-    { label:'CAC', val:fmtBRL(cac) },
-    { label:'ROAS', val:R(roas,2)+'x' },
-    { label:'Taxa Conv. R2→Venda', val:fmtPct(txR2) },
-  ].map(k=>`<div class="kpi"><div class="label">${k.label}</div><div class="value">${k.val}</div></div>`).join('');
-
-  // Group by campaign
-  renderTrafTable('p5-camp-table', tr, 'Campaign Name', 'Campaign Status', leads, 'campCards');
-  renderTrafTable('p5-adset-table', tr, 'Ad Set Name', 'Público Status', leads, 'adsetCards');
-  renderTrafTable('p5-ad-table', tr, 'Ad Name', 'Criativo Status', leads, 'adCards');
+  document.getElementById(tid).innerHTML=`<table class="dt"><thead><tr>
+    <th>Nome</th><th>Invest.</th><th>Leads</th><th>CPL</th><th>MQL</th><th>CPLQ</th>
+    <th>R1 Ag.</th><th>R1 Real.</th><th>R2 Ag.</th><th>R2 Real.</th><th>Vendas</th><th>Status</th>
+  </tr></thead><tbody>${rows.map(r=>`<tr>
+    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">${r.name}</td>
+    <td>${brl(r.inv)}</td><td>${nn(r.lds)}</td><td>${brl(r.cpl)}</td>
+    <td>${nn(r.mql)}</td><td>${brl(r.cplq)}</td>
+    <td>${nn(r.r1m)}</td><td>${nn(r.r1r)}</td><td>${nn(r.r2m)}</td><td>${nn(r.r2r)}</td>
+    <td>${nn(r.vnd)}</td>
+    <td><span style="color:${/^(active|ativo|on)$/i.test((r.status||'').trim())?'var(--green)':'var(--red)'}">●</span></td>
+  </tr>`).join('')}</tbody></table>`;
 }
 
-function renderTrafTable(containerId, trafficRows, groupField, statusField, leadsRows, cardsId) {
-  const groups = {};
-  trafficRows.forEach(r => {
-    const key = r[groupField] || 'Desconhecido';
-    if (!groups[key]) groups[key] = { rows: [], status: r[statusField] || '' };
-    groups[key].rows.push(r);
-  });
-
-  let active = 0, inactive = 0;
-  Object.values(groups).forEach(g => {
-    const s = (g.status||'').toLowerCase();
-    if (s === 'active' || s === 'ativo' || s === 'on') active++;
-    else inactive++;
-  });
-
-  if (cardsId) {
-    document.getElementById(cardsId).innerHTML = `
-      <div class="mini-card green"><div class="mc-label">Ativos</div><div class="mc-val">${active}</div></div>
-      <div class="mini-card red"><div class="mc-label">Inativos</div><div class="mc-val">${inactive}</div></div>
-      <div class="mini-card"><div class="mc-label">Gasto Médio/dia</div><div class="mc-val">${fmtBRL(calcDailyAvg(trafficRows))}</div></div>`;
-  }
-
-  const rows = Object.entries(groups).map(([name, g]) => {
-    const ta = aggregateTraffic(g.rows);
-    const gl = leadsRows.filter(l => (l['utm_content']||'').toLowerCase().includes(name.toLowerCase().slice(0,10)));
-    const la = aggregateLeads(gl);
-    const inv=ta.investimento, lds=ta.leads_traf||gl.length, mql=la.mql;
-    return { name, inv, lds, cpl:lds>0?inv/lds:0, mql, cplq:mql>0?inv/mql:0, status:g.status };
-  }).sort((a,b) => b.inv - a.inv);
-
-  const html = `<table class="comp-table">
-    <thead><tr>
-      <th>Nome</th>
-      <th>Investimento</th><th>Leads</th><th>CPL</th>
-      <th>MQL</th><th>CPLQ</th><th>Status</th>
-    </tr></thead>
-    <tbody>
-      ${rows.map(r=>`<tr>
-        <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${r.name}</td>
-        <td>${fmtBRL(r.inv)}</td><td>${fmtN(r.lds)}</td><td>${fmtBRL(r.cpl)}</td>
-        <td>${fmtN(r.mql)}</td><td>${fmtBRL(r.cplq)}</td>
-        <td><span style="color:${isActive(r.status)?'var(--green)':'var(--red)'}">●</span> ${r.status||'—'}</td>
-      </tr>`).join('')}
-    </tbody>
-  </table>`;
-  document.getElementById(containerId).innerHTML = html;
-}
-
-function isActive(status) {
-  const s = (status||'').toLowerCase();
-  return s === 'active' || s === 'ativo' || s === 'on';
-}
-
-function calcDailyAvg(rows) {
-  const dates = [...new Set(rows.map(r => r['Day']||r['Data']||'').filter(Boolean))];
-  if (!dates.length) return 0;
-  const total = sumField(rows, 'Amount Spent');
-  return total / dates.length;
-}
-
-// =============================================
-// PLANNING AGGREGATION
-// =============================================
-function getPlanningAgg() {
-  const { from, to } = getFilters();
-  let rows = STATE.planning;
-  if (from || to) {
-    rows = rows.filter(r => {
-      const d = r['Data'] || r['Mês'] || Object.values(r)[0] || '';
-      return inRange(d, from, to);
-    });
-  }
-  if (!rows.length) rows = STATE.planning;
-
-  function ps(field) { return sumField(rows, field); }
-  function pf(field) {
-    const keys = Object.keys(rows[0]||{});
-    const k = keys.find(k => k.toLowerCase().includes(field.toLowerCase()));
-    return k ? sumField(rows, k) : 0;
-  }
-
-  // Try to map common planning column names
-  return {
-    investimento: pf('investimento') || pf('invest') || 0,
-    leads: pf('leads') || 0,
-    mql: pf('mql') || pf('leads qualif') || 0,
-    sql: pf('sql') || 0,
-    agendamentos: pf('agendamento') || pf('r1 marcada') || 0,
-    r1: pf('r1 realizada') || pf('r1') || 0,
-    r2: pf('r2 realizada') || pf('r2') || 0,
-    vendas: pf('vendas') || pf('venda') || 0,
-    faturamento: pf('faturamento') || pf('mrr') || 0,
-    impressoes: pf('impressões') || pf('impressao') || 0,
-    cliques: pf('cliques') || pf('clique') || 0,
-    cpl: 0, cpc: 0, cpm: 0, ctr: 0,
-    cpmql: 0, cpsql: 0, cpag: 0, cpr1: 0, cpr2: 0, cpv: 0,
-    pct_mql: 0, pct_sql: 0, pct_ag: 0, pct_r1: 0, pct_r2: 0,
-  };
-}
-
-// =============================================
 // KOMMO
-// =============================================
-// Funnel stage order for cumulative counting
-const STAGE_ORDER = [
-  'Em contato inicial','Em Atendimento','Grupo Imersão',
-  'R1 Marcada','R1 Realizada','R2 Marcada','R2 Realizada',
-  'Negociação','Venda'
-];
+function openModal(){document.getElementById('kommoModal').classList.remove('hidden');}
+function closeModal(){document.getElementById('kommoModal').classList.add('hidden');}
 
-// Cumulative: counts leads at OR past a stage (a lead in Venda also counts for R1, R2 etc)
-function countKommoStage(stage) {
-  const stageIndex = STAGE_ORDER.indexOf(stage);
-  if (stageIndex === -1) return STATE.kommo.filter(l => l.stage === stage).length;
-  return STATE.kommo.filter(l => {
-    const leadIndex = STAGE_ORDER.indexOf(l.stage);
-    return leadIndex >= stageIndex;
-  }).length;
+function mapStage(name){
+  const s=(name||'').toLowerCase().trim();
+  if(s.includes('novo lead')||s.includes('contato inicial')) return 'Em contato inicial';
+  if(s.includes('em atendimento')||s==='atendimento') return 'Em Atendimento';
+  if(s.includes('imers')||s.includes('grupo')) return 'Grupo Imersão';
+  if(s.includes('r1 marcada')) return 'R1 Marcada';
+  if(s.includes('r1 feita')||s.includes('r1 realizada')||(/02\s*r1/.test(s)&&!s.includes('marcada'))) return 'R1 Realizada';
+  if(s.includes('r2 marcada')) return 'R2 Marcada';
+  if(s.includes('r2 apresentada')||s.includes('r2 realizada')||(/02\s*r2/.test(s)&&!s.includes('marcada'))) return 'R2 Realizada';
+  if(s.includes('negoci')) return 'Negociação';
+  if(s.includes('aguardando')||s.includes('pago')||s.includes('venda')||s.includes('ganho')) return 'Venda';
+  return name||'Em contato inicial';
 }
 
-// Exact count — only leads currently at that stage (for funnel cards)
-function countKommoStageExact(stage) {
-  return STATE.kommo.filter(l => l.stage === stage).length;
-}
+async function connectKommo(){
+  const sub=document.getElementById('ks').value.trim(), tok=document.getElementById('kt').value.trim();
+  if(!sub||!tok) return;
+  document.getElementById('kerr').classList.remove('show');
+  document.getElementById('kBtnTxt').textContent='Conectando...';
 
-function getMRRTotal() {
-  return STATE.kommo.filter(l => {
-    const idx = STAGE_ORDER.indexOf(l.stage);
-    return idx >= STAGE_ORDER.indexOf('Venda');
-  }).reduce((a,l)=>{
-    const raw = (l.mrr||'0').toString().replace(/[R$\s]/g,'').replace('.','').replace(',','.');
-    return a + (parseFloat(raw) || 0);
-  }, 0);
-}
-
-function getKommoLeadsTotal() {
-  return STATE.kommo.length;
-}
-
-function openModal() { document.getElementById('kommoModal').classList.remove('hidden'); }
-function closeModal() { document.getElementById('kommoModal').classList.add('hidden'); }
-
-async function connectKommo() {
-  const subdomain = document.getElementById('kommoSubdomain').value.trim();
-  const token = document.getElementById('kommoToken').value.trim();
-  if (!subdomain || !token) return;
-
-  document.getElementById('kommoError').classList.remove('show');
-
-  // Use /api/kommo proxy to avoid CORS
-  async function kommoFetch(path, extraParams = {}) {
-    const params = new URLSearchParams({ subdomain, token, path, ...extraParams });
-    const resp = await fetch(`/api/kommo?${params}`);
-    if (!resp.ok) throw new Error('API error: ' + resp.status);
-    return resp.json();
+  async function kf(path,params={}){
+    const qs=new URLSearchParams({subdomain:sub,token:tok,path,...params});
+    const r=await fetch(`/api/kommo?${qs}`);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
   }
 
-  try {
-    // Get all leads with tag "F - SE"
-    let page = 1;
-    let allLeads = [];
-    while (true) {
-      const data = await kommoFetch('leads', { limit: 250, page, 'with': 'contacts,tags' });
-      const items = data?._embedded?.leads || [];
-      if (!items.length) break;
+  try{
+    // Pipeline stages
+    let stagesMap={};
+    try{const pd=await kf('leads/pipelines');(pd?._embedded?.pipelines||[]).forEach(p=>(p._embedded?.statuses||[]).forEach(s=>{stagesMap[s.id]=s.name;}));}catch(e){}
 
-      const filtered = items.filter(lead => {
-        const tags = lead._embedded?.tags || [];
-        return tags.some(t => t.name && t.name.toLowerCase().includes('f - se'));
-      });
-      allLeads = allLeads.concat(filtered);
-      if (items.length < 250) break;
-      page++;
-      if (page > 20) break;
+    // All leads with tag F - SE
+    let all=[],page=1;
+    while(true){
+      const data=await kf('leads',{limit:250,page,'with':'contacts,tags'});
+      const items=data?._embedded?.leads||[];
+      if(!items.length) break;
+      all=all.concat(items.filter(l=>(l._embedded?.tags||[]).some(t=>(t.name||'').toLowerCase().includes('f - se'))));
+      if(items.length<250) break;
+      if(++page>20) break;
     }
 
-    // Fetch pipeline stages
-    let stagesMap = {};
-    try {
-      const pipData = await kommoFetch('leads/pipelines');
-      const pips = pipData?._embedded?.pipelines || [];
-      pips.forEach(pip => {
-        (pip._embedded?.statuses||[]).forEach(s => {
-          stagesMap[s.id] = s.name;
-        });
-      });
-    } catch(e) {}
-
-    // Map stage names to our funnel — matches exact Kommo stage names
-    function mapStage(name) {
-      const lower = (name||'').toLowerCase().trim();
-      if (lower.includes('novo lead') || lower.includes('contato inicial')) return 'Em contato inicial';
-      if (lower.includes('em atendimento') || lower === 'atendimento') return 'Em Atendimento';
-      if (lower.includes('imers') || lower.includes('grupo')) return 'Grupo Imersão';
-      if (lower.includes('r1 marcada')) return 'R1 Marcada';
-      if (lower.includes('r1 feita') || lower.includes('r1 realizada')) return 'R1 Realizada';
-      if (lower.includes('r2 marcada')) return 'R2 Marcada';
-      if (lower.includes('r2 apresentada') || lower.includes('r2 realizada')) return 'R2 Realizada';
-      if (lower.includes('negoci')) return 'Negociação';
-      if (lower.includes('aguardando') || lower.includes('pago') || lower.includes('venda') || lower.includes('ganho')) return 'Venda';
-      return name || 'Em contato inicial';
+    // Batch contacts
+    const cids=[...new Set(all.flatMap(l=>(l._embedded?.contacts||[]).map(c=>c.id)).filter(Boolean))];
+    const cMap={};
+    for(let i=0;i<cids.length;i+=50){
+      try{const cd=await kf('contacts',{'filter[id]':cids.slice(i,i+50).join(',')});(cd?._embedded?.contacts||[]).forEach(c=>{cMap[c.id]=c;});}catch(e){}
     }
 
-    // Parse leads — fetch contacts in batches to avoid rate limits
-    const contactIds = [...new Set(allLeads.flatMap(l => (l._embedded?.contacts||[]).map(c=>c.id)).filter(Boolean))];
-    const contactsMap = {};
-    for (let i = 0; i < contactIds.length; i += 50) {
-      try {
-        const batch = contactIds.slice(i, i+50);
-        const cd = await kommoFetch('contacts', { 'filter[id]': batch.join(',') });
-        (cd?._embedded?.contacts||[]).forEach(c => { contactsMap[c.id] = c; });
-      } catch(e) {}
-    }
-
-    STATE.kommo = allLeads.map(lead => {
-      const contactRef = lead._embedded?.contacts?.[0] || {};
-      const contactData = contactsMap[contactRef.id] || {};
-      const fields = (contactData.custom_fields_values||[]);
-      const getField = name => {
-        const f = fields.find(f=>f.field_name?.toLowerCase().includes(name.toLowerCase()));
-        return f?.values?.[0]?.value || '';
-      };
-      const leadFields = (lead.custom_fields_values||[]);
-      const getLeadField = name => {
-        const f = leadFields.find(f=>f.field_name?.toLowerCase().includes(name.toLowerCase()));
-        return f?.values?.[0]?.value || '';
-      };
-
-      const stageName = stagesMap[lead.status_id] || '';
-      const mappedStage = mapStage(stageName);
-      if (stageName) console.log(`[Kommo] Raw: "${stageName}" -> Mapped: "${mappedStage}"`);
-      return {
-        id: lead.id,
-        name: lead.name || contactData.name || '—',
-        phone: getField('telefone') || getField('phone') || '',
-        instagram: getField('instagram') || '',
-        stage: mappedStage,
-        mrr: getLeadField('mrr') || lead.price || '',
-        situacao: getLeadField('situação') || getLeadField('situacao') || '',
-        sql: getLeadField('sql') || '',
-        sal: getLeadField('sal') || '',
-        abordagem: getLeadField('abordagem') || '',
-        entry_date: lead.created_at ? new Date(lead.created_at*1000).toLocaleDateString('pt-BR') : '',
-        stage_date: lead.updated_at ? new Date(lead.updated_at*1000).toLocaleDateString('pt-BR') : '',
+    S.kommo=all.map(lead=>{
+      const cr=lead._embedded?.contacts?.[0]||{}, cd=cMap[cr.id]||{};
+      const cf=cd.custom_fields_values||[], lf=lead.custom_fields_values||[];
+      const g=(fields,n)=>{const f=fields.find(f=>f.field_name?.toLowerCase().includes(n.toLowerCase()));return f?.values?.[0]?.value||'';};
+      const raw=stagesMap[lead.status_id]||'', mapped=mapStage(raw);
+      console.log(`[K] "${raw}" → "${mapped}"`);
+      return{
+        id:lead.id, name:lead.name||cd.name||'—',
+        phone:g(cf,'telefone')||g(cf,'phone')||'',
+        instagram:g(cf,'instagram')||'',
+        stage:mapped,
+        mrr:g(lf,'mrr')||String(lead.price||''),
+        situacao:g(lf,'situação')||g(lf,'situacao')||'',
+        sql:g(lf,'sql')||'', sal:g(lf,'sal')||'', abordagem:g(lf,'abordagem')||'',
+        entry_date:lead.created_at?new Date(lead.created_at*1000).toLocaleDateString('pt-BR'):'',
+        stage_date:lead.updated_at?new Date(lead.updated_at*1000).toLocaleDateString('pt-BR'):'',
+        utm_campaign:g(lf,'utm_campaign')||g(cf,'utm_campaign')||'',
+        utm_content:g(lf,'utm_content')||g(cf,'utm_content')||'',
       };
     });
 
-    STATE.kommoToken = token;
-    STATE.kommoSubdomain = subdomain;
-
-    const btn = document.getElementById('kommoBtn');
-    btn.classList.add('connected');
-    document.getElementById('kommoBtnText').textContent = `Kommo: ${allLeads.length} leads`;
-
-    closeModal();
-    renderAll();
-  } catch(e) {
-    console.error('Kommo error:', e);
-    document.getElementById('kommoError').classList.add('show');
+    document.getElementById('kommoBtn').classList.add('connected');
+    document.getElementById('kBtnTxt').textContent=`Kommo · ${all.length} leads`;
+    closeModal(); renderAll();
+  }catch(e){
+    console.error(e);
+    document.getElementById('kerr').classList.add('show');
+    document.getElementById('kBtnTxt').textContent='Autenticar Kommo';
   }
 }
 
-// =============================================
-// NAVIGATION
-// =============================================
-const pageTitles = {
-  page1: 'Visão Geral do Funil',
-  page2: 'Dados Totais — Planejado vs Realizado',
-  page3: 'Dados Semanais',
-  page4: 'Dados Mensais',
-  page5: 'Tráfego Pago',
-};
-
-function showPage(id, el) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+// NAV
+const TITLES={page1:'Visão Geral do Funil',page2:'Dados Totais — Planejado vs Realizado',page3:'Dados Semanais',page4:'Dados Mensais',page5:'Tráfego Pago'};
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
-  if (el) el.classList.add('active');
-  document.getElementById('pageTitle').textContent = pageTitles[id] || '';
+  document.querySelectorAll('nav a').forEach(a=>a.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.getElementById('pageTitle').textContent=TITLES[id]||'';
 }
 
-// =============================================
 // INIT
-// =============================================
-(async function init() {
-  // Set default date range (current month)
-  const now = new Date();
-  const y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0');
-  document.getElementById('filterFrom').value = `${y}-${m}-01`;
-  document.getElementById('filterTo').value = `${y}-${m}-${String(new Date(y,now.getMonth()+1,0).getDate()).padStart(2,'0')}`;
-
+(async function(){
+  const now=new Date(),y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0');
+  const last=new Date(y,now.getMonth()+1,0).getDate();
+  document.getElementById('fFrom').value=`${y}-${m}-01`;
+  document.getElementById('fTo').value=`${y}-${m}-${String(last).padStart(2,'0')}`;
   await loadAllData();
 })();
 </script>
