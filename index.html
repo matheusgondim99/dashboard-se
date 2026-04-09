@@ -317,14 +317,22 @@ function getPlan(){
   let rows=S.planning;
   if(from||to){
     const fd=from?new Date(from):null, td=to?new Date(to):null;
+    // Build a Set of "YYYY-MM" strings covered by the filter range
+    const coveredMonths=new Set();
+    if(fd&&td){
+      let cur=new Date(fd.getFullYear(),fd.getMonth(),1);
+      const end=new Date(td.getFullYear(),td.getMonth(),1);
+      while(cur<=end){ coveredMonths.add(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`); cur=new Date(cur.getFullYear(),cur.getMonth()+1,1); }
+    } else if(fd){
+      coveredMonths.add(`${fd.getFullYear()}-${String(fd.getMonth()+1).padStart(2,'0')}`);
+    } else if(td){
+      coveredMonths.add(`${td.getFullYear()}-${String(td.getMonth()+1).padStart(2,'0')}`);
+    }
     const filtered=S.planning.filter(r=>{
       const ds=r['Data']||r['Mês']||Object.values(r)[0]||'';
       const d=pd(ds); if(!d||isNaN(d)) return false;
-      const ms=new Date(d.getFullYear(),d.getMonth(),1);
-      const me=new Date(d.getFullYear(),d.getMonth()+1,0);
-      if(fd && me<new Date(fd.getFullYear(),fd.getMonth(),1)) return false;
-      if(td && ms>new Date(td.getFullYear(),td.getMonth()+1,0)) return false;
-      return true;
+      const ym=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      return coveredMonths.has(ym);
     });
     if(filtered.length) rows=filtered;
   }
@@ -373,9 +381,17 @@ function aTraffic(rows){
 
 function aLeads(rows){
   const total=rows.length;
-  const mql=rows.filter(r=>{const q=(r['Qualificação']||'').toLowerCase();return q&&q!=='não qualificado'&&q!=='desqualificado'&&q!=='';}).length;
-  const sql=rows.filter(r=>['A','B'].includes((r['Nível Qualificação']||'').toUpperCase())).length;
-  const mqla=rows.filter(r=>(r['Nível Qualificação']||'').toUpperCase()==='A').length;
+  // MQL: has a non-empty Qualificação that isn't a disqualification marker
+  const disqWords=['não qualificado','nao qualificado','desqualificado','desqualif','sem qualif',''];
+  const mql=rows.filter(r=>{
+    const q=(r['Qualificação']||'').trim().toLowerCase();
+    if(!q) return false;
+    if(disqWords.some(w=>w&&q.includes(w))) return false;
+    return true;
+  }).length;
+  // SQL: Nível Qualificação is A or B
+  const sql=rows.filter(r=>['A','B'].includes((r['Nível Qualificação']||'').trim().toUpperCase())).length;
+  const mqla=rows.filter(r=>(r['Nível Qualificação']||'').trim().toUpperCase()==='A').length;
   return{total,mql,sql,mqla};
 }
 
@@ -522,7 +538,14 @@ function buildPeriod(period){
 function renderWT(id,labels,rows){
   if(!labels.length){document.getElementById(id).innerHTML='<div class="ls">Nenhum dado no período.</div>';return;}
   const ms=Object.keys(rows);
-  document.getElementById(id).innerHTML=`<table class="wt"><thead><tr><th>Métrica</th>${labels.map(l=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${ms.map(m=>`<tr><td>${m}</td>${labels.map(l=>`<td>${rows[m][l]||'—'}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  // Filter out columns (periods) where Investimento is 0 or empty
+  const activeLabels=labels.filter(l=>{
+    const v=rows['Investimento']?.[l]||'';
+    const num=parseFloat(v.replace(/[R$\s.]/g,'').replace(',','.'));
+    return !isNaN(num)&&num>0;
+  });
+  const displayLabels=activeLabels.length>0?activeLabels:labels;
+  document.getElementById(id).innerHTML=`<table class="wt"><thead><tr><th>Métrica</th>${displayLabels.map(l=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${ms.map(m=>`<tr><td>${m}</td>${displayLabels.map(l=>`<td>${rows[m][l]||'—'}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
 
 function renderP3(){ const{labels,rows}=buildPeriod('week'); renderWT('p3tbl',labels,rows); renderWeeklyChart(); }
@@ -604,7 +627,13 @@ function rTrafTable(tid,cid,tr,gf2,sf2,ld,km){
     const la=aLeads(gl);
     const lds=ta.leads_traf||gl.length,mql=la.mql;
     // Cross-reference Kommo — leads whose utm matches or whose name is in the group
-    const gk=km.filter(l=>(l.utm_campaign||l.utm_content||'').toLowerCase().includes(nk)||nk.includes((l.utm_campaign||'').toLowerCase().slice(0,8)));
+    // Only match kommo leads if utm is at least 6 chars and actually matches
+    const nk6=nk.length>=6?nk:null;
+    const gk=nk6?km.filter(l=>{
+      const uc=(l.utm_campaign||'').toLowerCase();
+      const ud=(l.utm_content||'').toLowerCase();
+      return (uc.length>=4&&(uc.includes(nk6)||nk6.includes(uc)))||(ud.length>=4&&(ud.includes(nk6)||nk6.includes(ud)));
+    }):[];
     const r1m=cStage('R1 Marcada',gk),r1r=cStage('R1 Realizada',gk);
     const r2m=cStage('R2 Marcada',gk),r2r=cStage('R2 Realizada',gk),vnd=cStage('Venda',gk);
     return{name,inv,lds,cpl:lds>0?inv/lds:0,mql,cplq:mql>0?inv/mql:0,r1m,r1r,r2m,r2r,vnd,status:g.status};
