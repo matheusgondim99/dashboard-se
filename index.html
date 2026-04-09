@@ -314,8 +314,6 @@ function applyFilters(){ renderAll(); }
 // PLANNING — picks months overlapping the filter range
 function getPlan(){
   const{from,to}=gf();
-
-  // Build set of YYYY-MM months covered by the date filter
   const coveredMonths=new Set();
   const fd=from?new Date(from):null;
   const td=to?new Date(to):null;
@@ -323,82 +321,73 @@ function getPlan(){
     let cur=new Date(fd.getFullYear(),fd.getMonth(),1);
     const end=new Date(td.getFullYear(),td.getMonth(),1);
     while(cur<=end){
-      coveredMonths.add(`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`);
+      coveredMonths.add(cur.getFullYear()+'-'+String(cur.getMonth()+1).padStart(2,'0'));
       cur=new Date(cur.getFullYear(),cur.getMonth()+1,1);
     }
   } else if(fd){
-    coveredMonths.add(`${fd.getFullYear()}-${String(fd.getMonth()+1).padStart(2,'0')}`);
+    coveredMonths.add(fd.getFullYear()+'-'+String(fd.getMonth()+1).padStart(2,'0'));
   } else if(td){
-    coveredMonths.add(`${td.getFullYear()}-${String(td.getMonth()+1).padStart(2,'0')}`);
+    coveredMonths.add(td.getFullYear()+'-'+String(td.getMonth()+1).padStart(2,'0'));
   }
-
-  // Filter planning rows by matching month
   let rows=S.planning;
   if(coveredMonths.size>0){
     const filtered=S.planning.filter(r=>{
-      // The date column is "Data" with format DD/MM/YYYY
       const ds=(r['Data']||'').toString().trim();
       if(!ds) return false;
-      // Parse DD/MM/YYYY
       const parts=ds.split('/');
       if(parts.length!==3) return false;
-      const [dd,mm,yyyy]=parts;
-      const ym=`${yyyy}-${mm.padStart(2,'0')}`;
+      const ym=parts[2].trim()+'-'+parts[1].trim().padStart(2,'0');
       return coveredMonths.has(ym);
     });
     if(filtered.length>0) rows=filtered;
   }
-
-  // Helper: sum a column by exact name
-  function col(name){return sf(rows,name);}
-  // Helper: average a % column (already a %)
-  function colAvg(name){
-    if(!rows.length) return 0;
-    const total=rows.reduce((a,r)=>{
-      const raw=(r[name]||'').toString().replace('%','').replace(',','.').trim();
-      return a+(parseFloat(raw)||0);
+  // num(): find column by trimmed+normalized name, sum values handling BR decimals
+  function num(colName){
+    const norm=s=>s.trim().toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ');
+    const key=Object.keys(rows[0]||{}).find(k=>norm(k)===norm(colName));
+    if(!key) return 0;
+    return rows.reduce((acc,r)=>{
+      let raw=(r[key]||'').toString().replace(/[R$\s%]/g,'').trim();
+      if(raw.includes(',')&&raw.includes('.')) raw=raw.replace(/\./g,'').replace(',','.');
+      else if(raw.includes(',')) raw=raw.replace(',','.');
+      const v=parseFloat(raw);
+      return acc+(isNaN(v)?0:v);
     },0);
-    return total/rows.length;
   }
-
-  // Exact column names from the planning sheet:
-  // Data, Investimento, CPL, Leads, Taxa de MQL, MQL, CMQL,
-  // Taxa de SQL, SQL, CSQL, Taxa de agendamento, Agendamentos,
-  // Taxa comparecimento R1, Reuniões R1, CPR1,
-  // Taxa comparecimento R2, Reuniões R2, CPR2,
-  // Taxa conversão, Nº de vendas, CAC, Ticket médio, Faturamento,
-  // Impressões, Cliques, CPM, CTR, CPC, Taxa de preenchimento
-
+  console.log('[Plan] rows:',rows.length,rows.map(r=>r['Data']));
+  console.log('[Plan] keys:',Object.keys(rows[0]||{}).map(k=>`"${k}"`).join(', '));
+  console.log('[Plan] Investimento:',num('Investimento'),'Leads:',num('Leads'),'MQL:',num('MQL'));
+  console.log('[Plan] R1:',num('Reunies R1'),'R2:',num('Reunies R2'),'Vendas:',num('N de vendas'));
+  console.log('[Plan] Faturamento:',num('Faturamento'));
   return{
-    investimento: col('Investimento'),
-    cpl:          col('CPL'),
-    leads:        col('Leads'),
-    taxa_mql:     colAvg('Taxa de MQL'),
-    mql:          col('MQL'),
-    cmql:         col('CMQL'),
-    taxa_sql:     colAvg('Taxa de SQL'),
-    sql:          col('SQL'),
-    csql:         col('CSQL'),
-    taxa_ag:      colAvg('Taxa de agendamento'),
-    agendamentos: col('Agendamentos'),
-    taxa_r1:      colAvg('Taxa comparecimento R1'),
-    r1:           col('Reuniões R1'),
-    cpr1:         col('CPR1'),
-    taxa_r2:      colAvg('Taxa comparecimento R2'),
-    r2:           col('Reuniões R2'),
-    cpr2:         col('CPR2'),
-    taxa_conv:    colAvg('Taxa conversão'),
-    vendas:       col('Nº de vendas'),
-    cac:          col('CAC'),
-    ticket:       col('Ticket médio'),
-    faturamento:  col('Faturamento'),
-    impressoes:   col('Impressões'),
-    cliques:      col('Cliques'),
-    cpm:          col('CPM'),
-    ctr:          colAvg('CTR'),
-    cpc:          col('CPC'),
-    // aliases for compatibility
-    pct_mql:0, pct_sql:0, pct_ag:0, pct_r1:0, pct_r2:0
+    investimento:num('Investimento'),
+    cpl:num('CPL'),
+    leads:num('Leads'),
+    mql:num('MQL'),
+    cmql:num('CMQL'),
+    sql:num('SQL'),
+    csql:num('CSQL'),
+    agendamentos:num('Agendamentos'),
+    r1:num('Reunies R1'),
+    cpr1:num('CPR1'),
+    r2:num('Reunies R2'),
+    cpr2:num('CPR2'),
+    vendas:num('N de vendas'),
+    cac:num('CAC'),
+    ticket:num('Ticket mdio'),
+    faturamento:num('Faturamento'),
+    impressoes:num('Impresses'),
+    cliques:num('Cliques'),
+    cpm:num('CPM'),
+    ctr:num('CTR'),
+    cpc:num('CPC'),
+    taxa_mql:num('Taxa de MQL'),
+    taxa_sql:num('Taxa de SQL'),
+    taxa_ag:num('Taxa de agendamento'),
+    taxa_r1:num('Taxa comparecimento R1'),
+    taxa_r2:num('Taxa comparecimento R2'),
+    taxa_conv:num('Taxa converso'),
+    pct_mql:0,pct_sql:0,pct_ag:0,pct_r1:0,pct_r2:0
   };
 }
 
@@ -414,7 +403,17 @@ function db(v){ return `<span class="badge ${dc(v)}">${ds(v)}</span>`; }
 
 function sf(arr,field){
   return arr.reduce((a,r)=>{
-    const raw=(r[field]||'').toString().replace(/[R$\s]/g,'').replace(/\./g,'').replace(',','.');
+    let raw=(r[field]||'').toString().replace(/[R$\s%]/g,'').trim();
+    // Handle Brazilian number format: "1.234,56" → 1234.56, "74,25" → 74.25, "9000" → 9000
+    if(raw.includes(',')&&raw.includes('.')){
+      // Has both: dot=thousand sep, comma=decimal → remove dots, replace comma
+      raw=raw.replace(/\./g,'').replace(',','.');
+    } else if(raw.includes(',')&&!raw.includes('.')){
+      // Only comma: could be decimal (74,25) or just format — treat as decimal
+      // If only one comma and digits on both sides, it's decimal
+      raw=raw.replace(',','.');
+    }
+    // else: already a plain number like "9000"
     const v=parseFloat(raw); return a+(isNaN(v)?0:v);
   },0);
 }
