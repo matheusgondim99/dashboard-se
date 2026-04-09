@@ -298,7 +298,7 @@ function pd(s){
 
 function inRange(ds,from,to){
   const d=pd(ds); if(!d||isNaN(d)) return true;
-  if(from && d<new Date(from)) return false;
+  if(from && d<new Date(from+'T00:00:00')) return false;
   if(to && d>new Date(to+'T23:59:59')) return false;
   return true;
 }
@@ -315,8 +315,9 @@ function applyFilters(){ renderAll(); }
 function getPlan(){
   const{from,to}=gf();
   const coveredMonths=new Set();
-  const fd=from?new Date(from):null;
-  const td=to?new Date(to):null;
+  // Use T00:00:00 to force local time parsing (avoids UTC timezone shift)
+  const fd=from?new Date(from+'T00:00:00'):null;
+  const td=to?new Date(to+'T00:00:00'):null;
   if(fd&&td){
     let cur=new Date(fd.getFullYear(),fd.getMonth(),1);
     const end=new Date(td.getFullYear(),td.getMonth(),1);
