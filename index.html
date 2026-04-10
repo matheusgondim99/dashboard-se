@@ -879,28 +879,43 @@ async function connectKommo(){
     S.kommo=all.map(lead=>{
       const cr=lead._embedded?.contacts?.[0]||{}, cd=cMap[cr.id]||{};
       const cf=cd.custom_fields_values||[], lf=lead.custom_fields_values||[];
+      // g(): find a field in custom_fields_values by field_code OR field_name
       const g=(fields,n)=>{
+        const nl=n.toLowerCase();
         const f=fields.find(f=>
-          (f.field_name?.toLowerCase().includes(n.toLowerCase()))||
-          (f.field_code?.toLowerCase()===n.toLowerCase())
+          (f.field_code&&f.field_code.toLowerCase()===nl)||
+          (f.field_name&&f.field_name.toLowerCase().includes(nl))
         );
-        return f?.values?.[0]?.value||'';
+        if(!f) return '';
+        // Values can be array of {value} objects
+        const val=f.values?.[0]?.value;
+        return val!=null?String(val):'';
       };
-      // In Kommo, email and phone are stored as direct arrays on the contact object
-      // NOT in custom_fields_values
-      // Contact: { ..., email: [{value:"a@b.com",enum:"WORK"}], phone: [{value:"55...",enum:"MOB"}] }
-      const extractEmail=(cd)=>{
-        if(Array.isArray(cd.email)&&cd.email.length>0) return (cd.email[0].value||'').toLowerCase().trim();
-        if(typeof cd.email==='string'&&cd.email) return cd.email.toLowerCase().trim();
+      // Extract phone: field_code=PHONE, or field_name contains "tel"/"fone"/"phone"
+      // Also check direct contact.phone array (some API versions)
+      const extractPhone=(cf,cd)=>{
+        // Try field_code PHONE first
+        const byCode=cf.find(f=>f.field_code==='PHONE');
+        if(byCode&&byCode.values?.[0]?.value) return String(byCode.values[0].value).replace(/\D/g,'');
+        // Try field_name containing tel/fone/phone
+        const byName=cf.find(f=>{const n=(f.field_name||'').toLowerCase();return n.includes('tel')||n.includes('fone')||n.includes('phone');});
+        if(byName&&byName.values?.[0]?.value) return String(byName.values[0].value).replace(/\D/g,'');
+        // Try direct arrays on contact object
+        if(Array.isArray(cd.phone)&&cd.phone.length>0) return String(cd.phone[0].value||'').replace(/\D/g,'');
         return '';
       };
-      const extractPhone=(cd)=>{
-        if(Array.isArray(cd.phone)&&cd.phone.length>0) return (cd.phone[0].value||'').replace(/\D/g,'');
-        if(typeof cd.phone==='string'&&cd.phone) return cd.phone.replace(/\D/g,'');
+      // Extract email: field_code=EMAIL, or field_name contains "email"/"mail"
+      const extractEmail=(cf,cd)=>{
+        const byCode=cf.find(f=>f.field_code==='EMAIL');
+        if(byCode&&byCode.values?.[0]?.value) return String(byCode.values[0].value).toLowerCase().trim();
+        const byName=cf.find(f=>{const n=(f.field_name||'').toLowerCase();return n.includes('email')||n.includes('e-mail');});
+        if(byName&&byName.values?.[0]?.value) return String(byName.values[0].value).toLowerCase().trim();
+        if(Array.isArray(cd.email)&&cd.email.length>0) return String(cd.email[0].value||'').toLowerCase().trim();
         return '';
       };
       const raw=stagesMap[lead.status_id]||'', mapped=mapStage(raw);
-      console.log(`[K] "${raw}" → "${mapped}" | email: "${extractEmail(cd)}" | phone: "${extractPhone(cd).slice(-9)}"`);
+      const dbgEmail=extractEmail(cf,cd), dbgPhone=extractPhone(cf,cd);
+      console.log(`[K] "${raw}" → "${mapped}" | email: "${dbgEmail}" | phone: "${dbgPhone.slice(-9)}" | cf_codes: ${JSON.stringify(cf.map(f=>f.field_code).filter(Boolean))}`);
       return{
         id:lead.id, name:lead.name||cd.name||'—',
         phone:g(cf,'telefone')||g(cf,'phone')||'',
@@ -914,8 +929,8 @@ async function connectKommo(){
         utm_campaign:g(lf,'utm_campaign')||g(cf,'utm_campaign')||'',
         utm_content:g(lf,'utm_content')||g(cf,'utm_content')||'',
         qualificacao:g(lf,'qualificação')||g(lf,'qualificacao')||g(cf,'qualificação')||g(cf,'qualificacao')||'',
-        phone_digits:extractPhone(cd)||(g(cf,'telefone')||g(cf,'phone')||'').replace(/\D/g,''),
-        email:extractEmail(cd)||(g(cf,'email')||g(cf,'e-mail')||'').toLowerCase().trim(),
+        phone_digits:extractPhone(cf,cd),
+        email:extractEmail(cf,cd),
       };
     });
 
