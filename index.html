@@ -790,18 +790,52 @@ function closeModal(){document.getElementById('kommoModal').classList.add('hidde
 
 function mapStage(name){
   const s=(name||'').toLowerCase().trim();
-  if(s.includes('novo lead')||s.includes('contato inicial')) return 'Em contato inicial';
-  if(s.includes('em atendimento')||s==='atendimento') return 'Em Atendimento';
-  if(s.includes('imers')||s.includes('grupo')) return 'Grupo Imersão';
-  if(s.includes('r1 marcada')) return 'R1 Marcada';
-  if(s.includes('r1 feita')||s.includes('r1 realizada')||(/02\s*r1/.test(s)&&!s.includes('marcada'))) return 'R1 Realizada';
-  if(s.includes('r2 marcada')) return 'R2 Marcada';
-  if(s.includes('r2 apresentada')||s.includes('r2 realizada')||(/02\s*r2/.test(s)&&!s.includes('marcada'))) return 'R2 Realizada';
-  if(s.includes('negoci')) return 'Negociação';
-  if(s.includes('02 pago')||s.includes('ganho')) return 'Venda';
+
+  // ── VENDA ──────────────────────────────────────────────
+  if(s==='02 pago'||s.includes('ganho')||s==='pago') return 'Venda';
+
+  // ── PÓS R2 (ainda não é venda — última etapa medida: R2 Realizada) ─
+  // "02 Aguardando pagamento", "02 Negociação", qualquer etapa entre R2 e Venda
   if(s.includes('aguardando pagamento')) return 'R2 Realizada';
-  if(s.includes('venda')) return 'Venda';
-  return name||'Em contato inicial';
+  if(s.includes('negoci')) return 'Negociação';
+
+  // ── R2 ─────────────────────────────────────────────────
+  if(s.includes('r2 apresentada')||s.includes('r2 realizada')) return 'R2 Realizada';
+  if(s.includes('no show r2')||s.includes('noshow r2')) return 'R2 Marcada'; // compareceu mas no-show → ainda conta R2 marcada
+  if(s.includes('r2 marcada')||s.includes('r2_marcada')) return 'R2 Marcada';
+  // "02 r2 *" — qualquer sub-etapa de r2 não mapeada acima → R2 Marcada
+  if(/02\s+r2/.test(s)) return 'R2 Marcada';
+
+  // ── R1 ─────────────────────────────────────────────────
+  if(s.includes('r1 feita')||s.includes('r1 realizada')) return 'R1 Realizada';
+  if(s.includes('no show r1')||s.includes('noshow r1')) return 'R1 Marcada'; // no-show → ainda conta R1 marcada
+  if(s.includes('r1 marcada')||s.includes('r1_marcada')) return 'R1 Marcada';
+  // "02 r1 *" — qualquer sub-etapa de r1 → R1 Marcada
+  if(/02\s+r1/.test(s)) return 'R1 Marcada';
+  // "02 fup agendado", "02 follow up" etc — etapas de follow up após R1 → R1 Realizada
+  if(s.includes('fup agend')||s.includes('follow up agend')) return 'R1 Realizada';
+
+  // ── GRUPO IMERSÃO ───────────────────────────────────────
+  if(s.includes('imers')||s.includes('grupo imers')) return 'Grupo Imersão';
+
+  // ── ATENDIMENTO ─────────────────────────────────────────
+  if(s.includes('em atendimento')||s.includes('01 sdr - em atend')) return 'Em Atendimento';
+  // Follow up, contato futuro, FUP — lead ainda em atendimento (não chegou a R1)
+  if(s.includes('follow up')||s.includes('follow-up')||s.includes('fup')||
+     s.includes('contato futuro')||s.includes('01 sdr')) return 'Em Atendimento';
+
+  // ── CONTATO INICIAL ─────────────────────────────────────
+  if(s.includes('novo lead')||s.includes('contato inicial')) return 'Em contato inicial';
+
+  // ── NÃO MAPEADAS (perdidos, desqualificados, frios, inválidos) ──
+  // Esses leads existiram no funil mas saíram — mapeamos para "Em contato inicial"
+  // para que sejam contabilizados como leads que entraram mas não avançaram
+  if(s.includes('perdido')||s.includes('desqualif')||s.includes('invalido')||
+     s.includes('inválido')||s.includes('frio')||s.includes('sem urgencia')||
+     s.includes('sem urgência')||s.includes('financeiro')) return 'Em contato inicial';
+
+  // Fallback — qualquer coisa não reconhecida → contato inicial
+  return 'Em contato inicial';
 }
 
 async function connectKommo(){
