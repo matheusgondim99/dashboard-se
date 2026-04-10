@@ -481,8 +481,8 @@ function renderP1(){
   const ta=aTraffic(tr), la=aLeads(ld), plan=getPlan();
   const rl=km.length>0?km.length:(ta.leads_traf||la.total);
   // MQL from Kommo: leads that have a non-empty Qualificação custom field
-  const kommoMql=km.filter(l=>l.qualificacao&&l.qualificacao.trim()!=='').length;
-  const rmql=kommoMql>0?kommoMql:la.mql;
+  // MQL always from Leads Kommo sheet (planilha de respostas)
+  const rmql=la.mql;
   const r1r=cStage('R1 Realizada',km), r2r=cStage('R2 Realizada',km);
   const rv=cStage('Venda',km), rf=getMRR(km), inv=ta.investimento;
 
@@ -524,8 +524,8 @@ function renderP2(){
   const ta=aTraffic(tr), la=aLeads(ld), plan=getPlan();
   const rl=km.length>0?km.length:(ta.leads_traf||la.total);
   const inv=ta.investimento, imp=ta.impressoes, cl=ta.cliques;
-  const kommoMql2=km.filter(l=>l.qualificacao&&l.qualificacao.trim()!=='').length;
-  const mql=kommoMql2>0?kommoMql2:la.mql;
+  // MQL always from Leads Kommo sheet
+  const mql=la.mql;
   const sql=la.sql;
   const r1m=cStage('R1 Marcada',km), r1r=cStage('R1 Realizada',km);
   const r2m=cStage('R2 Marcada',km), r2r=cStage('R2 Realizada',km);
@@ -625,8 +625,8 @@ function buildPeriod(period){
     const ta=aTraffic(tr), la=aLeads(lr);
     const inv=ta.investimento, imp=ta.impressoes, cl=ta.cliques;
     const lds=km.length>0?km.length:(ta.leads_traf||lr.length);
-    const kommoMqlP=km.filter(l=>l.qualificacao&&l.qualificacao.trim()!=='').length;
-    const mql=kommoMqlP>0?kommoMqlP:la.mql, sql=la.sql;
+    // MQL from sheet
+    const mql=la.mql, sql=la.sql;
     const r1m=cStage('R1 Marcada',km), r1r=cStage('R1 Realizada',km);
     const r2m=cStage('R2 Marcada',km), r2r=cStage('R2 Realizada',km);
     const vnd=cStage('Venda',km), fat=getMRR(km), cac=vnd>0?inv/vnd:0;
@@ -701,7 +701,8 @@ function renderP5(){
   const tr=fTraffic(), ld=fLeads();
   const ta=aTraffic(tr), la=aLeads(ld), plan=getPlan();
   const inv=ta.investimento;
-  const rl=ta.leads_traf||la.total;
+  // Leads: from Leads Kommo sheet (form responses), not Meta Ads
+  const rl=la.total;
   const mql=la.mql;
 
   document.getElementById('p5kpis').innerHTML=[
@@ -757,7 +758,8 @@ function renderDimTable(tid,cid,trafficRows,leadsRows,trafField,statusField,utmF
     // Match leads whose utm field exactly equals this dimension name
     const gl=leadsRows.filter(r=>(r[utmField]||'').trim()===name);
     const la=aLeads(gl);
-    const lds=ta.leads_traf||gl.length;
+    // Leads: count from sheet responses, not Meta Ads
+    const lds=gl.length;
     const mql=la.mql;
     const link=linkMap[name]||'';
     return{name,inv,lds,cpl:lds>0?inv/lds:0,mql,cplq:mql>0?inv/mql:0,status:g.status,link};
