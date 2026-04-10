@@ -683,13 +683,12 @@ function renderMonthlyChart(){ if(mCI) mCI.destroy(); const{labels,data}=chartDa
 
 // PAGE 5
 function renderP5(){
-  const tr=fTraffic(),ld=fLeads(),km=fKommo();
-  const ta=aTraffic(tr),la=aLeads(ld),plan=getPlan();
-  const rl=km.length>0?km.length:(ta.leads_traf||la.total);
+  const tr=fTraffic(), ld=fLeads(), km=fKommo();
+  const ta=aTraffic(tr), la=aLeads(ld), plan=getPlan();
+  const rv=cStage('Venda',km), inv=ta.investimento, rf=getMRR(km);
   const kommoMql5=km.filter(l=>l.qualificacao&&l.qualificacao.trim()!=='').length;
-  const mqlP5=kommoMql5>0?kommoMql5:la.mql;
-  la.mql=mqlP5;
-  const rv=cStage('Venda',km),inv=ta.investimento,rf=getMRR(km);
+  la.mql=kommoMql5>0?kommoMql5:la.mql;
+  const rl=km.length>0?km.length:(ta.leads_traf||la.total);
 
   document.getElementById('p5kpis').innerHTML=[
     {l:'Investimento',v:brl(inv),p:brl(plan.investimento),d:delt(inv,plan.investimento)},
@@ -702,86 +701,122 @@ function renderP5(){
     {l:'Vendas',v:nn(rv),p:nn(plan.vendas),d:delt(rv,plan.vendas)},
   ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div><div class="km"><span class="kp">Meta: <b>${k.p}</b></span>${db(k.d)}</div></div>`).join('');
 
-  const cac=rv>0?inv/rv:0,roas=inv>0?rf/inv:0;
-  const r2r=cStage('R2 Realizada',km),r2m=cStage('R2 Marcada',km);
+  const cac=rv>0?inv/rv:0, roas=inv>0?rf/inv:0;
+  const r2r=cStage('R2 Realizada',km), r2m=cStage('R2 Marcada',km);
   document.getElementById('p5fin').innerHTML=[
-    {l:'Faturamento',v:brl(rf)},{l:'CAC',v:brl(cac)},{l:'ROAS',v:Rn(roas,2)+'x'},{l:'Taxa Conv. R2→Venda',v:pct(r2m>0?(r2r/r2m)*100:0)}
+    {l:'Faturamento',v:brl(rf)},{l:'CAC',v:brl(cac)},
+    {l:'ROAS',v:Rn(roas,2)+'x'},{l:'Taxa Conv. R2→Venda',v:pct(r2m>0?(r2r/r2m)*100:0)}
   ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div></div>`).join('');
 
-  rTrafTable('p5camp','campCards',tr,'Campaign Name','Campaign Status',ld,km);
-  rTrafTable('p5adset','adsetCards',tr,'Ad Set Name','Público Status',ld,km);
-  rTrafTable('p5ad','adCards',tr,'Ad Name','Criativo Status',ld,km);
-}
-
-function rTrafTable(tid,cid,tr,gf2,sf2,ld,km){
-  const groups={};
-  tr.forEach(r=>{const k=r[gf2]||'Desconhecido';if(!groups[k])groups[k]={rows:[],status:r[sf2]||''};groups[k].rows.push(r);});
-  let act=0,ina=0;
-  Object.values(groups).forEach(g=>/^(active|ativo|on)$/i.test((g.status||'').trim())?act++:ina++);
-  const days=[...new Set(tr.map(r=>r['Day']||r['Data']||'').filter(Boolean))].length||1;
-  if(cid) document.getElementById(cid).innerHTML=`<div class="ms green"><div class="msl">Ativos</div><div class="msv">${act}</div></div><div class="ms red"><div class="msl">Inativos</div><div class="msv">${ina}</div></div><div class="ms"><div class="msl">Média/dia</div><div class="msv">${brl(sf(tr,'Amount Spent')/days)}</div></div>`;
-
-  // Build phone_digits → kommo lead map for cross-referencing
-  const phoneMap={};
-  km.forEach(l=>{
-    if(!l.phone_digits||l.phone_digits.length<8) return;
-    // Index by last 9 digits to handle country code variations
-    const key=l.phone_digits.slice(-9);
-    phoneMap[key]=l;
-    // Also index by last 8
-    phoneMap[l.phone_digits.slice(-8)]=l;
-    // And full number
-    phoneMap[l.phone_digits]=l;
+  // Build UTM lookup from Leads Kommo sheet
+  // Key: normalized phone OR email → {utm_campaign, utm_content, utm_medium}
+  const utmByPhone={}, utmByEmail={};
+  ld.forEach(row=>{
+    const utms={
+      camp:(row['utm_campaign']||'').trim(),
+      adset:(row['utm_content']||'').trim(),
+      ad:(row['utm_medium']||'').trim()
+    };
+    if(!utms.camp&&!utms.adset&&!utms.ad) return;
+    // Index by phone (digits only, last 9)
+    const ph=(row['Telefone']||row['telefone']||'').replace(/\D/g,'');
+    if(ph.length>=8){
+      utmByPhone[ph]=utms;
+      utmByPhone[ph.slice(-9)]=utms;
+      utmByPhone[ph.slice(-8)]=utms;
+    }
+    // Index by email (lowercase)
+    const em=(row['Email']||row['email']||'').trim().toLowerCase();
+    if(em) utmByEmail[em]=utms;
   });
 
-  // Given sheet leads, return matched kommo leads via phone
-  function matchKommoByPhone(sheetLeads){
-    const seen=new Set();
-    const result=[];
-    sheetLeads.forEach(sl=>{
-      const raw=(sl['Telefone']||sl['telefone']||sl['Phone']||sl['phone']||'').toString().replace(/\D/g,'');
-      if(!raw||raw.length<8) return;
-      const variants=[raw,raw.slice(-9),raw.slice(-8),'55'+raw.replace(/^0/,'')];
+  // For each Kommo lead, find their UTMs via email or phone
+  function getLeadUtms(lead){
+    // Try email first
+    const em=(lead.email||'').toLowerCase().trim();
+    if(em&&utmByEmail[em]) return utmByEmail[em];
+    // Try phone
+    const ph=(lead.phone_digits||'').replace(/\D/g,'');
+    if(ph){
+      const variants=[ph, ph.slice(-9), ph.slice(-8)];
       for(const v of variants){
-        const found=phoneMap[v];
-        if(found&&!seen.has(found.id)){seen.add(found.id);result.push(found);break;}
+        if(utmByPhone[v]) return utmByPhone[v];
       }
-    });
-    return result;
+    }
+    return null;
   }
 
-  const rows=Object.entries(groups).map(([name,g])=>{
-    const ta=aTraffic(g.rows),inv=ta.investimento,nk=name.toLowerCase();
-    // Match sheet leads by utm
-    const gl=ld.filter(l=>{
-      const uc=(l['utm_campaign']||l['utm_content']||l['utm_pagina']||'').toLowerCase();
-      // Match if utm contains the group name fragment or vice versa
-      const nk15=nk.slice(0,15);
-      return uc&&(uc.includes(nk15)||nk15.includes(uc.slice(0,10)));
+  // Tag each kommo lead with UTMs
+  const kmWithUtms=km.map(lead=>({
+    ...lead,
+    utms: getLeadUtms(lead)
+  }));
+
+  // Render the 3 tables
+  renderTrafByDimension('p5camp','campCards', tr, kmWithUtms, 'Campaign Name', 'Campaign Status', 'camp');
+  renderTrafByDimension('p5adset','adsetCards', tr, kmWithUtms, 'Ad Set Name', 'Público Status', 'adset');
+  renderTrafByDimension('p5ad','adCards', tr, kmWithUtms, 'Ad Name', 'Criativo Status', 'ad');
+}
+
+function renderTrafByDimension(tid, cid, trafficRows, kmWithUtms, trafficField, statusField, utmKey){
+  // Group traffic rows by the dimension (campaign/adset/ad)
+  const tGroups={};
+  trafficRows.forEach(r=>{
+    const k=(r[trafficField]||'Desconhecido').trim();
+    if(!tGroups[k]) tGroups[k]={rows:[], status:r[statusField]||''};
+    tGroups[k].rows.push(r);
+  });
+
+  let active=0, inactive=0;
+  Object.values(tGroups).forEach(g=>/^(active|ativo|on)$/i.test((g.status||'').trim())?active++:inactive++);
+  const days=[...new Set(trafficRows.map(r=>(r['Day']||r['Data']||'').trim()).filter(Boolean))].length||1;
+  const totalInv=sf(trafficRows,'Amount Spent');
+
+  if(cid) document.getElementById(cid).innerHTML=
+    `<div class="ms green"><div class="msl">Ativos</div><div class="msv">${active}</div></div>`+
+    `<div class="ms red"><div class="msl">Inativos</div><div class="msv">${inactive}</div></div>`+
+    `<div class="ms"><div class="msl">Média/dia</div><div class="msv">${brl(totalInv/days)}</div></div>`;
+
+  // Build rows
+  const rows=Object.entries(tGroups).map(([name, g])=>{
+    const ta=aTraffic(g.rows);
+    const inv=ta.investimento;
+    const lds=ta.leads_traf||0;
+
+    // Find Kommo leads whose UTM matches this dimension
+    const matchedKm=kmWithUtms.filter(l=>{
+      if(!l.utms) return false;
+      const val=(l.utms[utmKey]||'').trim();
+      return val===name;
     });
-    const la=aLeads(gl);
-    const lds=ta.leads_traf||gl.length;
-    // Cross-reference with Kommo via phone number
-    const gk=matchKommoByPhone(gl);
-    const kommoMqlG=gk.filter(l=>l.qualificacao&&l.qualificacao.trim()!=='').length;
-    const mql=kommoMqlG>0?kommoMqlG:la.mql;
-    const r1m=cStage('R1 Marcada',gk),r1r=cStage('R1 Realizada',gk);
-    const r2m=cStage('R2 Marcada',gk),r2r=cStage('R2 Realizada',gk),vnd=cStage('Venda',gk);
-    return{name,inv,lds,cpl:lds>0?inv/lds:0,mql,cplq:mql>0?inv/mql:0,r1m,r1r,r2m,r2r,vnd,status:g.status};
+
+    // MQL from matched Kommo leads
+    const mql=matchedKm.filter(l=>l.qualificacao&&l.qualificacao.trim()!=='').length;
+    const r1m=cStage('R1 Marcada',matchedKm);
+    const r1r=cStage('R1 Realizada',matchedKm);
+    const r2m=cStage('R2 Marcada',matchedKm);
+    const r2r=cStage('R2 Realizada',matchedKm);
+    const vnd=cStage('Venda',matchedKm);
+
+    return{name,inv,lds,cpl:lds>0?inv/lds:0,mql,cplq:mql>0?inv/mql:0,r1m,r1r,r2m,r2r,vnd,status:g.status,matched:matchedKm.length};
   }).sort((a,b)=>b.inv-a.inv);
 
   document.getElementById(tid).innerHTML=`<table class="dt"><thead><tr>
-    <th>Nome</th><th>Invest.</th><th>Leads</th><th>CPL</th><th>MQL</th><th>CPLQ</th>
-    <th>R1 Ag.</th><th>R1 Real.</th><th>R2 Ag.</th><th>R2 Real.</th><th>Vendas</th><th>Status</th>
+    <th>Nome</th><th>Invest.</th><th>Leads</th><th>CPL</th>
+    <th>MQL</th><th>CPLQ</th>
+    <th>R1 Ag.</th><th>R1 Real.</th><th>R2 Ag.</th><th>R2 Real.</th>
+    <th>Vendas</th><th>Status</th>
   </tr></thead><tbody>${rows.map(r=>`<tr>
-    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.name}">${r.name}</td>
+    <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left" title="${r.name}">${r.name}</td>
     <td>${brl(r.inv)}</td><td>${nn(r.lds)}</td><td>${brl(r.cpl)}</td>
     <td>${nn(r.mql)}</td><td>${brl(r.cplq)}</td>
-    <td>${nn(r.r1m)}</td><td>${nn(r.r1r)}</td><td>${nn(r.r2m)}</td><td>${nn(r.r2r)}</td>
+    <td>${nn(r.r1m)}</td><td>${nn(r.r1r)}</td>
+    <td>${nn(r.r2m)}</td><td>${nn(r.r2r)}</td>
     <td>${nn(r.vnd)}</td>
     <td><span style="color:${/^(active|ativo|on)$/i.test((r.status||'').trim())?'var(--green)':'var(--red)'}">●</span></td>
   </tr>`).join('')}</tbody></table>`;
 }
+
 
 // KOMMO
 function openModal(){document.getElementById('kommoModal').classList.remove('hidden');}
@@ -856,8 +891,8 @@ async function connectKommo(){
         utm_campaign:g(lf,'utm_campaign')||g(cf,'utm_campaign')||'',
         utm_content:g(lf,'utm_content')||g(cf,'utm_content')||'',
         qualificacao:g(lf,'qualificação')||g(lf,'qualificacao')||g(cf,'qualificação')||g(cf,'qualificacao')||'',
-        // Normalize phone: keep only digits for matching
         phone_digits:(g(cf,'telefone')||g(cf,'phone')||'').replace(/\D/g,''),
+        email:(g(cf,'email')||g(cf,'e-mail')||cd.email||'').toLowerCase().trim(),
       };
     });
 
