@@ -869,7 +869,11 @@ async function connectKommo(){
     const cids=[...new Set(all.flatMap(l=>(l._embedded?.contacts||[]).map(c=>c.id)).filter(Boolean))];
     const cMap={};
     for(let i=0;i<cids.length;i+=50){
-      try{const cd=await kf('contacts',{'filter[id]':cids.slice(i,i+50).join(','),'with':'custom_fields'});(cd?._embedded?.contacts||[]).forEach(c=>{cMap[c.id]=c;});}catch(e){}
+      try{
+        // Request contacts with all fields including email/phone arrays
+        const cd=await kf('contacts',{'filter[id]':cids.slice(i,i+50).join(',')});
+        (cd?._embedded?.contacts||[]).forEach(c=>{cMap[c.id]=c;});
+      }catch(e){}
     }
 
     S.kommo=all.map(lead=>{
@@ -882,19 +886,21 @@ async function connectKommo(){
         );
         return f?.values?.[0]?.value||'';
       };
-      // Extract email: check field_code='EMAIL', field_name contains 'email', or direct contact field
-      const extractEmail=(cf,cd)=>{
-        const byCode=cf.find(f=>f.field_code==='EMAIL'||f.field_code==='email');
-        if(byCode) return (byCode.values?.[0]?.value||'').toLowerCase().trim();
-        const byName=cf.find(f=>(f.field_name||'').toLowerCase().includes('email'));
-        if(byName) return (byName.values?.[0]?.value||'').toLowerCase().trim();
-        // Also check direct email array on contact object (Kommo sometimes returns it separately)
-        if(cd.email&&Array.isArray(cd.email)&&cd.email[0]) return (cd.email[0].value||'').toLowerCase().trim();
-        if(typeof cd.email==='string') return cd.email.toLowerCase().trim();
+      // In Kommo, email and phone are stored as direct arrays on the contact object
+      // NOT in custom_fields_values
+      // Contact: { ..., email: [{value:"a@b.com",enum:"WORK"}], phone: [{value:"55...",enum:"MOB"}] }
+      const extractEmail=(cd)=>{
+        if(Array.isArray(cd.email)&&cd.email.length>0) return (cd.email[0].value||'').toLowerCase().trim();
+        if(typeof cd.email==='string'&&cd.email) return cd.email.toLowerCase().trim();
+        return '';
+      };
+      const extractPhone=(cd)=>{
+        if(Array.isArray(cd.phone)&&cd.phone.length>0) return (cd.phone[0].value||'').replace(/\D/g,'');
+        if(typeof cd.phone==='string'&&cd.phone) return cd.phone.replace(/\D/g,'');
         return '';
       };
       const raw=stagesMap[lead.status_id]||'', mapped=mapStage(raw);
-      console.log(`[K] "${raw}" → "${mapped}" | email: "${extractEmail(cf,cd)}" | phone: "${(g(cf,'telefone')||g(cf,'phone')||'').replace(/\D/g,'').slice(-9)}"`);
+      console.log(`[K] "${raw}" → "${mapped}" | email: "${extractEmail(cd)}" | phone: "${extractPhone(cd).slice(-9)}"`);
       return{
         id:lead.id, name:lead.name||cd.name||'—',
         phone:g(cf,'telefone')||g(cf,'phone')||'',
@@ -908,8 +914,8 @@ async function connectKommo(){
         utm_campaign:g(lf,'utm_campaign')||g(cf,'utm_campaign')||'',
         utm_content:g(lf,'utm_content')||g(cf,'utm_content')||'',
         qualificacao:g(lf,'qualificação')||g(lf,'qualificacao')||g(cf,'qualificação')||g(cf,'qualificacao')||'',
-        phone_digits:(g(cf,'telefone')||g(cf,'phone')||'').replace(/\D/g,''),
-        email:extractEmail(cf,cd),
+        phone_digits:extractPhone(cd)||(g(cf,'telefone')||g(cf,'phone')||'').replace(/\D/g,''),
+        email:extractEmail(cd)||(g(cf,'email')||g(cf,'e-mail')||'').toLowerCase().trim(),
       };
     });
 
