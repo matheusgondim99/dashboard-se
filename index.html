@@ -292,7 +292,27 @@ async function loadAllData(){
 function pd(s){
   if(!s) return null;
   s=s.toString().trim();
-  if(s.includes('/')){const p=s.split('/');if(p.length===3){const[a,b,c]=p;return new Date(`${c}-${b.padStart(2,'0')}-${a.padStart(2,'0')}`);}}
+  if(!s) return null;
+  // DD/MM/YYYY
+  if(/^\d{2}\/\d{2}\/\d{4}$/.test(s)){
+    const[d,m,y]=s.split('/'); return new Date(`${y}-${m}-${d}T00:00:00`);
+  }
+  // ISO with Z: 2026-04-01T04:40:26.000Z or 2026-04-01T04:40:26Z
+  if(/^\d{4}-\d{2}-\d{2}T/.test(s)){
+    return new Date(s); // native ISO parsing works fine
+  }
+  // YYYY-MM-DD
+  if(/^\d{4}-\d{2}-\d{2}$/.test(s)){
+    return new Date(s+'T00:00:00');
+  }
+  // Portuguese: "abril 7, 2026" or "agosto 23, 2025"
+  const ptMonths={janeiro:0,fevereiro:1,março:2,marco:2,abril:3,maio:4,junho:5,julho:6,agosto:7,setembro:8,outubro:9,novembro:10,dezembro:11};
+  const ptMatch=s.match(/^([a-záàãâéèêíìóòõôúù]+)\s+(\d{1,2}),?\s+(\d{4})$/i);
+  if(ptMatch){
+    const mon=ptMonths[ptMatch[1].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')];
+    if(mon!==undefined) return new Date(parseInt(ptMatch[3]),mon,parseInt(ptMatch[2]));
+  }
+  // Fallback
   const d=new Date(s); return isNaN(d)?null:d;
 }
 
@@ -429,16 +449,11 @@ function aTraffic(rows){
 
 function aLeads(rows){
   const total=rows.length;
-  // MQL: has a non-empty Qualificação that isn't a disqualification marker
-  const disqWords=['não qualificado','nao qualificado','desqualificado','desqualif','sem qualif',''];
-  const mql=rows.filter(r=>{
-    const q=(r['Qualificação']||'').trim().toLowerCase();
-    if(!q) return false;
-    if(disqWords.some(w=>w&&q.includes(w))) return false;
-    return true;
-  }).length;
+  // MQL: Qualificação === 'Qualificado' (exact match, case insensitive)
+  const mql=rows.filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado').length;
   // SQL: Nível Qualificação is A or B
   const sql=rows.filter(r=>['A','B'].includes((r['Nível Qualificação']||'').trim().toUpperCase())).length;
+  // MQL A: Nível Qualificação === A
   const mqla=rows.filter(r=>(r['Nível Qualificação']||'').trim().toUpperCase()==='A').length;
   return{total,mql,sql,mqla};
 }
