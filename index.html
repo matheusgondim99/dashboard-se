@@ -849,7 +849,24 @@ function showPage(id,el){
   document.getElementById('fFrom').value=`${y}-${m}-01`;
   document.getElementById('fTo').value=`${y}-${m}-${String(last).padStart(2,'0')}`;
   await loadAllData();
+  // Auto-authenticate Kommo using env vars configured in Vercel
+  await autoAuthKommo();
 })();
+
+async function autoAuthKommo(){
+  try{
+    const r=await fetch('/api/kommo-config');
+    if(!r.ok) return; // No config set, user needs to authenticate manually
+    const cfg=await r.json();
+    if(!cfg.subdomain||!cfg.token) return;
+    // Pre-fill modal fields and connect
+    document.getElementById('ks').value=cfg.subdomain;
+    document.getElementById('kt').value=cfg.token;
+    await connectKommo();
+  }catch(e){
+    console.log('[Kommo] Auto-auth not available, manual auth required');
+  }
+}
 </script>
 </body>
 </html>
