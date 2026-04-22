@@ -30,6 +30,7 @@ nav a.active .icon{opacity:1}
 .kommo-btn{width:100%;padding:8px 12px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--sidebar-text);font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:center;transition:all .2s}
 .kommo-btn:hover{border-color:rgba(255,255,255,.3);color:#fff}
 .kommo-btn.connected{border-color:#22c55e;color:#22c55e}
+.kommo-btn.kommo-error{border-color:var(--red);color:var(--red)}
 .kommo-btn .dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
 .main{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
 .topbar{padding:12px 22px;border-bottom:1px solid var(--border2);display:flex;align-items:center;gap:10px;background:#1e3468;position:sticky;top:0;z-index:10;box-shadow:var(--shadow-md);flex-wrap:wrap}
@@ -313,6 +314,8 @@ table.lm-tbl td:nth-child(2){color:var(--text);font-weight:500}
 <script>
 // STATE
 const S = { traffic:[], leads:[], planning:[], kommo:[] };
+let kommoState = 'pending'; // 'pending' | 'connected' | 'error'
+const KOMMO_CACHE_KEY = 'se_kommo_data';
 
 // SHEETS
 const SHEETS = {
@@ -324,11 +327,14 @@ const SHEETS = {
 async function loadCSV(url){ return new Promise((res,rej)=>Papa.parse(url,{download:true,header:true,skipEmptyLines:true,complete:r=>res(r.data),error:e=>rej(e)})); }
 
 async function loadAllData(){
+  sessionStorage.removeItem(KOMMO_CACHE_KEY);
+  kommoState='pending';
   try {
     const [t,l,p] = await Promise.all([loadCSV(SHEETS.traffic),loadCSV(SHEETS.leads),loadCSV(SHEETS.planning)]);
     S.traffic=t; S.leads=l; S.planning=p;
     renderAll();
   } catch(e){ console.error(e); }
+  await autoAuthKommo();
 }
 
 // DATE
@@ -464,6 +470,7 @@ function delt(r,p){ if(!p||p===0) return null; return((r-p)/Math.abs(p))*100; }
 function dc(v){ return v===null?'neu':v>=0?'pos':'neg'; }
 function ds(v){ if(v===null) return '—'; return(v>=0?'+':'')+Rn(v,1)+'%'; }
 function db(v){ return `<span class="badge ${dc(v)}">${ds(v)}</span>`; }
+function kfmt(v,fmt=nn){ return kommoState==='error'?'—':fmt(v); }
 
 function sf(arr,field){
   return arr.reduce((a,r)=>{
@@ -533,11 +540,11 @@ function renderP1(){
     {l:'Investimento',       v:brl(inv),  p:brl(plan.investimento),  d:delt(inv,plan.investimento)},
     {l:'Leads',              v:nn(rl),    p:nn(plan.leads),           d:delt(rl,plan.leads),  fn:'lmOpenLeads', tip:la.total},
     {l:'Leads Qualificados', v:nn(rmql),  p:nn(plan.mql),             d:delt(rmql,plan.mql), fn:'lmOpenMql',   tip:rmql},
-    {l:'R1 Realizadas',      v:nn(r1r),   p:nn(plan.r1),              d:delt(r1r,plan.r1)},
-    {l:'R2 Realizadas',      v:nn(r2r),   p:nn(plan.r2),              d:delt(r2r,plan.r2)},
-    {l:'Vendas',             v:nn(rv),    p:nn(plan.vendas),           d:delt(rv,plan.vendas)},
-    {l:'Faturamento',        v:brl(rf),   p:brl(plan.faturamento),    d:delt(rf,plan.faturamento)},
-    {l:'MRR Adicionado',     v:brl(rf),   p:'—',                      d:null},
+    {l:'R1 Realizadas',      v:kfmt(r1r),    p:nn(plan.r1),           d:kommoState==='error'?null:delt(r1r,plan.r1)},
+    {l:'R2 Realizadas',      v:kfmt(r2r),    p:nn(plan.r2),           d:kommoState==='error'?null:delt(r2r,plan.r2)},
+    {l:'Vendas',             v:kfmt(rv),     p:nn(plan.vendas),       d:kommoState==='error'?null:delt(rv,plan.vendas)},
+    {l:'Faturamento',        v:kfmt(rf,brl), p:brl(plan.faturamento), d:kommoState==='error'?null:delt(rf,plan.faturamento)},
+    {l:'MRR Adicionado',     v:kfmt(rf,brl), p:'—',                   d:null},
   ].map(k=>`<div class="kpi${k.fn?' clickable':''}"${k.fn?` onclick="${k.fn}()" data-tip="${k.tip} ${k.tip===1?'lead':'leads'} — clique para detalhes"`:''}>
     <div class="kl">${k.l}</div><div class="kv">${k.v}</div>
     <div class="km"><span class="kp">Meta: <b>${k.p}</b></span>${db(k.d)}</div>
@@ -552,11 +559,14 @@ function renderP1(){
     {l:'CAC',v:brl(cac)},{l:'ROAS',v:Rn(roas,2)+'x'},{l:'Ticket Médio',v:brl(tick)},{l:'CPL',v:brl(cpl)},{l:'CPLQ',v:brl(cplq)}
   ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div></div>`).join('');
 
-  const kommoReady=S.kommo.length>0;
+  const kommoOk=S.kommo.length>0&&kommoState!=='error';
+  const kommoErr=kommoState==='error';
   document.getElementById('p1cards').innerHTML=['R1 Marcada','Grupo Imersão','R2 Marcada','R2 Realizada'].map(stage=>{
     const leads=km.filter(l=>l.stage===stage);
-    const body=!kommoReady
-      ?'<div class="empty-s" style="color:var(--text3)">Aguardando Kommo...</div>'
+    const body=!kommoOk
+      ?kommoErr
+        ?'<div class="empty-s" style="color:var(--red)">Kommo indisponível</div>'
+        :'<div class="empty-s" style="color:var(--text3)">Aguardando Kommo...</div>'
       :leads.length===0
         ?'<div class="empty-s">Nenhum lead aqui</div>'
         :leads.map(l=>`<div class="lead-row"><div class="lead-name">${l.name||'—'}</div><div class="lead-info">${[l.phone,l.instagram?'@'+l.instagram:''].filter(Boolean).join(' · ')}</div><div class="lead-info">${l.mrr?'MRR: R$'+l.mrr:''} ${l.entry_date?'· '+l.entry_date:''}</div></div>`).join('');
@@ -585,20 +595,23 @@ function renderP2(){
   const p1=r1m>0?(r1r/r1m)*100:0, p2=r2m>0?(r2r/r2m)*100:0;
   const resp=ld.length, pctResp=rl>0?(resp/rl)*100:0;
 
+  const K=v=>kommoState==='error'?null:v;
   // row(metric, planVal, realVal, planCost, realCost, planPct, realPct, fv, fc, clickFn)
   function row(m,pv,rv2,pc,rc,pp,rp,fv=nn,fc=brl,clickFn=null){
-    const dv=delt(rv2,pv),dcc=delt(rc,pc),dp=delt(rp,pp);
+    const dv=rv2!=null?delt(rv2,pv):null;
+    const dcc=rc!=null?delt(rc,pc):null;
+    const dp=rp!=null?delt(rp,pp):null;
     const planV=pv!=null?fv(pv):'—', realV=fv(rv2);
     const planC=pc!=null?fc(pc):'—', realC=rc!=null?fc(rc):'—';
     const planP=pp!=null?pct(pp):'—', realP=rp!=null?pct(rp):'—';
-    const realCell=clickFn
+    const realCell=clickFn&&rv2!=null
       ?`<td class="td-click" onclick="${clickFn}()" data-tip="${rv2} ${rv2===1?'lead':'leads'} — clique para detalhes">${realV}</td>`
       :`<td>${realV}</td>`;
     return`<tr>
       <td>${m}</td>
-      <td>${planV}</td>${realCell}<td>${pv!=null?db(dv):'—'}</td>
-      <td>${planC}</td><td>${realC}</td><td>${pc!=null?db(dcc):'—'}</td>
-      <td>${planP}</td><td>${realP}</td><td>${pp!=null?db(dp):'—'}</td>
+      <td>${planV}</td>${realCell}<td>${dv!=null?db(dv):'—'}</td>
+      <td>${planC}</td><td>${realC}</td><td>${dcc!=null?db(dcc):'—'}</td>
+      <td>${planP}</td><td>${realP}</td><td>${dp!=null?db(dp):'—'}</td>
     </tr>`;
   }
 
@@ -623,18 +636,18 @@ function renderP2(){
       ${row('Respostas',null,resp,null,null,null,pctResp)}
       ${row('SQL',plan.sql,sql,plan.csql,cpsql,plan.taxa_sql,ps)}
       ${row('Custo SQL',null,cpsql,plan.csql,null,null,null,brl,brl)}
-      ${row('R1 Marcada',plan.agendamentos,r1m,plan.cpr1,cpag,plan.taxa_ag,pa)}
-      ${row('R1 Realizada',plan.r1,r1r,plan.cpr1,cpr1,plan.taxa_r1,p1)}
-      ${row('% Comparecimento R1',null,null,null,null,plan.taxa_r1,p1)}
-      ${row('Custo R1',null,cpr1,plan.cpr1,null,null,null,brl,brl)}
-      ${row('R2 Marcada',plan.r2,r2m,plan.cpr2,null,null,null)}
-      ${row('R2 Realizada',plan.r2,r2r,plan.cpr2,cpr2,plan.taxa_r2,p2)}
-      ${row('% Comparecimento R2',null,null,null,null,plan.taxa_r2,p2)}
-      ${row('Faturamento',plan.faturamento,fat,null,null,null,null,brl,brl)}
-      ${row('CAC',plan.cac,cac,null,null,null,null,brl,brl)}
-      ${row('MRR Adicionado',null,fat,null,null,null,null,brl,brl)}
-      ${row('Vendas',plan.vendas,rv,plan.cac,cpv,plan.taxa_conv,null)}
-      ${row('Ticket Médio',plan.ticket,rv>0?fat/rv:0,null,null,null,null,brl,brl)}
+      ${row('R1 Marcada',plan.agendamentos,K(r1m),plan.cpr1,K(cpag),plan.taxa_ag,K(pa))}
+      ${row('R1 Realizada',plan.r1,K(r1r),plan.cpr1,K(cpr1),plan.taxa_r1,K(p1))}
+      ${row('% Comparecimento R1',null,null,null,null,plan.taxa_r1,K(p1))}
+      ${row('Custo R1',null,K(cpr1),plan.cpr1,null,null,null,brl,brl)}
+      ${row('R2 Marcada',plan.r2,K(r2m),plan.cpr2,null,null,null)}
+      ${row('R2 Realizada',plan.r2,K(r2r),plan.cpr2,K(cpr2),plan.taxa_r2,K(p2))}
+      ${row('% Comparecimento R2',null,null,null,null,plan.taxa_r2,K(p2))}
+      ${row('Faturamento',plan.faturamento,K(fat),null,null,null,null,brl,brl)}
+      ${row('CAC',plan.cac,K(cac),null,null,null,null,brl,brl)}
+      ${row('MRR Adicionado',null,K(fat),null,null,null,null,brl,brl)}
+      ${row('Vendas',plan.vendas,K(rv),plan.cac,K(cpv),plan.taxa_conv,null)}
+      ${row('Ticket Médio',plan.ticket,K(rv>0?fat/rv:0),null,null,null,null,brl,brl)}
     </tbody></table>`;
 }
 
@@ -1006,8 +1019,9 @@ async function connectKommo(){
       };
     });
 
-    document.getElementById('kommoBtn').classList.add('connected');
-    document.getElementById('kBtnTxt').textContent=`Kommo · ${all.length} leads`;
+    sessionStorage.setItem(KOMMO_CACHE_KEY, JSON.stringify(S.kommo));
+    kommoState='connected';
+    updateKommoBtn();
     closeModal(); renderAll();
   }catch(e){
     console.error(e);
@@ -1032,32 +1046,55 @@ function showPage(id,el){
   const last=new Date(y,now.getMonth()+1,0).getDate();
   document.getElementById('fFrom').value=`${y}-${m}-01`;
   document.getElementById('fTo').value=`${y}-${m}-${String(last).padStart(2,'0')}`;
-  await loadAllData();
-  // Auto-authenticate Kommo using env vars configured in Vercel
-  await autoAuthKommo();
+  await loadAllData(); // includes autoAuthKommo
 })();
 
-async function autoAuthKommo(){
+function updateKommoBtn(){
   const btn=document.getElementById('kommoBtn');
   const txt=document.getElementById('kBtnTxt');
+  btn.classList.remove('connected','kommo-error');
+  if(kommoState==='connected'){
+    btn.classList.add('connected');
+    txt.textContent=`Kommo · ${S.kommo.length} leads`;
+  } else if(kommoState==='error'){
+    btn.classList.add('kommo-error');
+    txt.textContent='Kommo indisponível';
+  } else {
+    txt.textContent='Autenticar Kommo';
+  }
+}
+
+async function autoAuthKommo(){
+  const txt=document.getElementById('kBtnTxt');
+  // Use cached data if available (invalidated by Atualizar button via loadAllData)
+  try{
+    const cached=sessionStorage.getItem(KOMMO_CACHE_KEY);
+    if(cached){
+      S.kommo=JSON.parse(cached);
+      kommoState='connected';
+      updateKommoBtn();
+      renderAll();
+      return;
+    }
+  }catch(e){ sessionStorage.removeItem(KOMMO_CACHE_KEY); }
   try{
     txt.textContent='Conectando Kommo...';
     const r=await fetch('/api/kommo-config');
     if(!r.ok){
-      txt.textContent='Autenticar Kommo';
+      kommoState='error'; updateKommoBtn(); renderAll();
       console.log('[Kommo] Config endpoint not available:', r.status);
       return;
     }
     const cfg=await r.json();
     if(!cfg.subdomain||!cfg.token){
-      txt.textContent='Autenticar Kommo';
+      kommoState='error'; updateKommoBtn(); renderAll();
       return;
     }
     document.getElementById('ks').value=cfg.subdomain;
     document.getElementById('kt').value=cfg.token;
     await connectKommo();
   }catch(e){
-    txt.textContent='Autenticar Kommo';
+    kommoState='error'; updateKommoBtn(); renderAll();
     console.log('[Kommo] Auto-auth failed:', e.message);
   }
 }
