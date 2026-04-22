@@ -1034,6 +1034,50 @@ async function autoAuthKommo(){
     console.log('[Kommo] Auto-auth failed:', e.message);
   }
 }
+
+// ── LEADS MODAL ──────────────────────────────────────────────────────────────
+function lmFmtDate(s){
+  if(!s) return '—';
+  const d=pd(s); // reusa pd() já existente
+  if(!d||isNaN(d)) return String(s).substring(0,10);
+  return d.toLocaleDateString('pt-BR');
+}
+
+function openLeadsModal(title, rows){
+  document.getElementById('lmTitle').textContent=title;
+  document.getElementById('lmCount').textContent=rows.length===1?'1 lead':rows.length+' leads';
+  const body=document.getElementById('lmBody');
+  if(!rows.length){
+    body.innerHTML='<div class="lm-empty">Nenhum lead nesta categoria no período selecionado.</div>';
+  } else {
+    const sorted=[...rows].sort((a,b)=>{
+      const da=pd(a['Data'])||new Date(0), db2=pd(b['Data'])||new Date(0);
+      return db2-da;
+    });
+    body.innerHTML='<table class="lm-tbl"><thead><tr><th>Data</th><th>Nome</th><th>Telefone</th></tr></thead><tbody>'+
+      sorted.map(r=>`<tr>
+        <td>${lmFmtDate(r['Data'])}</td>
+        <td>${(r['Nome']||'—').trim()}</td>
+        <td>${(r['Telefone']||'—').trim()}</td>
+      </tr>`).join('')+
+    '</tbody></table>';
+  }
+  const ov=document.getElementById('leadsModal');
+  ov.classList.remove('hidden');
+  requestAnimationFrame(()=>ov.classList.add('lm-open'));
+}
+
+function closeLeadsModal(){
+  const ov=document.getElementById('leadsModal');
+  ov.classList.remove('lm-open');
+  setTimeout(()=>ov.classList.add('hidden'),150);
+}
+
+function lmClickOverlay(e){
+  if(e.target===document.getElementById('leadsModal')) closeLeadsModal();
+}
+
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLeadsModal(); });
 </script>
 </body>
 </html>
