@@ -83,6 +83,7 @@ table.wt td:first-child{text-align:left;color:var(--text);font-weight:500;positi
 table.wt tr:hover td{background:var(--surface2)}
 table.wt tr:hover td:first-child{background:var(--surface2)}
 .chart-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.p5-charts-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .chart-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .chart-hd h3{font-size:13px;font-weight:600;color:var(--text)}
 .chart-sel{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;cursor:pointer}
@@ -320,8 +321,14 @@ table.lm-tbl td:nth-child(2){color:var(--text);font-weight:500}
         <div class="kpi-grid c4" id="p5kpis"><div class="ls" style="grid-column:1/-1"><div class="spin"></div></div></div>
         <div class="sec mt12">Financeiro</div>
         <div class="kpi-grid c4" id="p5fin"></div>
+        <div class="sec mt20">Progresso do Mês</div>
+        <div class="p5-charts-grid">
+          <div class="chart-box"><div class="chart-hd"><h3>Investimento</h3></div><div class="chart-c"><canvas id="bChart1"></canvas></div></div>
+          <div class="chart-box"><div class="chart-hd"><h3>Leads</h3></div><div class="chart-c"><canvas id="bChart2"></canvas></div></div>
+          <div class="chart-box"><div class="chart-hd"><h3>MQL</h3></div><div class="chart-c"><canvas id="bChart3"></canvas></div></div>
+        </div>
         <div class="sec mt20">Por Campanha</div>
-        <div class="panel"><div class="panel-hd"><h3>Campanhas</h3><div class="mini-stats" id="campCards"></div></div>
+        <div class="panel"><div class="panel-hd"><h3>Por Campanha</h3><div class="mini-stats" id="campCards"></div></div>
           <div class="tbl-wrap" id="p5camp"></div></div>
         <div class="sec mt20">Por Público</div>
         <div class="panel"><div class="panel-hd"><h3>Públicos</h3><div class="mini-stats" id="adsetCards"></div></div>
@@ -494,6 +501,39 @@ function dc(v){ return v===null?'neu':v>=0?'pos':'neg'; }
 function ds(v){ if(v===null) return '—'; return(v>=0?'+':'')+Rn(v,1)+'%'; }
 function db(v){ return `<span class="badge ${dc(v)}">${ds(v)}</span>`; }
 function kfmt(v,fmt=nn){ return kommoState==='error'?'—':fmt(v); }
+
+function getFilterRatio(){
+  const{from,to}=gf();
+  if(!from||!to) return 1;
+  const fd=new Date(from+'T00:00:00'), td=new Date(to+'T00:00:00');
+  const filterDays=Math.round((td-fd)/86400000)+1;
+  let totalDays=0;
+  let cur=new Date(fd.getFullYear(),fd.getMonth(),1);
+  const end=new Date(td.getFullYear(),td.getMonth(),1);
+  while(cur<=end){ totalDays+=new Date(cur.getFullYear(),cur.getMonth()+1,0).getDate(); cur=new Date(cur.getFullYear(),cur.getMonth()+1,1); }
+  return totalDays>0?filterDays/totalDays:1;
+}
+
+function burndownData(metric){
+  const{from,to}=gf();
+  if(!from||!to) return{labels:[],actual:[],target:[]};
+  const fd=new Date(from+'T00:00:00'), td=new Date(to+'T00:00:00');
+  const plan=getPlan(), ratio=getFilterRatio();
+  const targetTotal=metric==='investimento'?plan.investimento*ratio:metric==='leads'?plan.leads*ratio:metric==='mql'?plan.mql*ratio:0;
+  const days=[]; let cur=new Date(fd);
+  while(cur<=td){ days.push(cur.toISOString().slice(0,10)); cur=new Date(cur.getTime()+86400000); }
+  const dailyMap={};
+  if(metric==='investimento'){
+    S.traffic.forEach(r=>{const d=pd(r['Day']||r['Data']||'');if(!d||!inRange(r['Day']||r['Data']||'',from,to))return;const k=d.toISOString().slice(0,10);dailyMap[k]=(dailyMap[k]||0)+sf([r],'Amount Spent');});
+  } else {
+    const src=metric==='mql'?S.leads.filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado'):S.leads;
+    src.forEach(r=>{const d=pd(r['Data']||'');if(!d||!inRange(r['Data']||'',from,to))return;const k=d.toISOString().slice(0,10);dailyMap[k]=(dailyMap[k]||0)+1;});
+  }
+  let cum=0; const n=days.length;
+  const labels=[],actual=[],target=[];
+  days.forEach((d,i)=>{cum+=(dailyMap[d]||0);labels.push(d.slice(5));actual.push(cum);target.push(targetTotal>0?targetTotal*((i+1)/n):null);});
+  return{labels,actual,target};
+}
 
 function sf(arr,field){
   return arr.reduce((a,r)=>{
@@ -905,28 +945,47 @@ function chartData(period,metric){
   return{labels,data};
 }
 
-let wCI=null,mCI=null;
+let wCI=null,mCI=null,bCI=[null,null,null];
 function mkChart(ctx,labels,data){
   return new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:'rgba(37,99,235,.75)',borderColor:'#2563eb',borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{family:'Inter',size:10}},grid:{color:'#e8ecf2'}},y:{ticks:{color:'#94a3b8',font:{family:'Inter',size:10}},grid:{color:'#e8ecf2'}}}}});
 }
 function renderWeeklyChart(){ if(wCI) wCI.destroy(); const{labels,data}=chartData('week',document.getElementById('p3m').value); wCI=mkChart(document.getElementById('wChart').getContext('2d'),labels,data); }
 function renderMonthlyChart(){ if(mCI) mCI.destroy(); const{labels,data}=chartData('month',document.getElementById('p4m').value); mCI=mkChart(document.getElementById('mChart').getContext('2d'),labels,data); }
+function renderBurndownCharts(){
+  const metrics=['investimento','leads','mql'];
+  const ids=['bChart1','bChart2','bChart3'];
+  bCI.forEach((c,i)=>{if(c){c.destroy();bCI[i]=null;}});
+  metrics.forEach((m,i)=>{
+    const{labels,actual,target}=burndownData(m);
+    const ctx=document.getElementById(ids[i])?.getContext('2d');
+    if(!ctx) return;
+    bCI[i]=new Chart(ctx,{type:'line',data:{labels,datasets:[
+      {label:'Realizado',data:actual,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.08)',fill:true,tension:.3,pointRadius:0,borderWidth:2},
+      {label:'Meta',data:target,borderColor:'#94a3b8',borderDash:[5,4],fill:false,tension:0,pointRadius:0,borderWidth:1.5}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{size:9},maxTicksLimit:10},grid:{color:'#e8ecf2'}},y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#e8ecf2'}}}}});
+  });
+}
 
 // PAGE 5
 function renderP5(){
   const tr=fTraffic(), ld=fLeads();
   const ta=aTraffic(tr), la=aLeads(ld), plan=getPlan();
+  const ratio=getFilterRatio();
   const inv=ta.investimento;
-  // Leads: from Leads Kommo sheet (form responses), not Meta Ads
   const rl=la.total;
   const mql=la.mql;
 
+  // Metas proporcionais: escala métricas de volume pelo ratio filtro/mês
+  const SCALE_KEYS=new Set(['investimento','leads','mql','sql','agendamentos','r1','r2','vendas','faturamento','impressoes','cliques']);
+  const planPro={};
+  Object.keys(plan).forEach(k=>{planPro[k]=SCALE_KEYS.has(k)?plan[k]*ratio:plan[k];});
+
   document.getElementById('p5kpis').innerHTML=[
-    {l:'Investimento',v:brl(inv),p:brl(plan.investimento),d:delt(inv,plan.investimento)},
-    {l:'Leads',v:nn(rl),p:nn(plan.leads),d:delt(rl,plan.leads),fn:'lmOpenLeads',tip:rl},
-    {l:'CPL',v:brl(rl>0?inv/rl:0),p:'—',d:null},
-    {l:'MQL',v:nn(mql),p:nn(plan.mql),d:delt(mql,plan.mql),fn:'lmOpenMql',tip:mql},
-    {l:'Custo MQL',v:brl(mql>0?inv/mql:0),p:'—',d:null},
+    {l:'Investimento',v:brl(inv),p:brl(planPro.investimento),d:delt(inv,planPro.investimento)},
+    {l:'Leads',v:nn(rl),p:nn(planPro.leads),d:delt(rl,planPro.leads),fn:'lmOpenLeads',tip:rl},
+    {l:'CPL',v:brl(rl>0?inv/rl:0),p:plan.cpl?brl(plan.cpl):'—',d:null},
+    {l:'MQL',v:nn(mql),p:nn(planPro.mql),d:delt(mql,planPro.mql),fn:'lmOpenMql',tip:mql},
+    {l:'Custo MQL',v:brl(mql>0?inv/mql:0),p:plan.cmql?brl(plan.cmql):'—',d:null},
     {l:'MQL A',v:nn(la.mqla),p:'—',d:null,fn:'lmOpenMqla',tip:la.mqla},
     {l:'Custo MQL A',v:brl(la.mqla>0?inv/la.mqla:0),p:'—',d:null},
   ].map(k=>`<div class="kpi${k.fn?' clickable':''}"${k.fn?` onclick="${k.fn}()" data-tip="${k.tip} ${k.tip===1?'lead':'leads'} — clique para detalhes"`:''}>
@@ -934,10 +993,16 @@ function renderP5(){
     <div class="km"><span class="kp">Meta: <b>${k.p}</b></span>${db(k.d)}</div>
   </div>`).join('');
 
+  const km=fKommo();
+  const m=buildMetrics(ld,km,inv);
   document.getElementById('p5fin').innerHTML=[
-    {l:'ROAS',v:'—'},{l:'CAC',v:'—'},{l:'Faturamento',v:'—'},{l:'Taxa Conv. R2→Venda',v:'—'}
-  ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div></div>`).join('');
+    {l:'ROAS',v:kfmt(m.roas,v=>`${Rn(v,1)}×`)},
+    {l:'CAC',v:kfmt(m.cac,brl),p:plan.cac?brl(plan.cac):'—'},
+    {l:'Faturamento',v:kfmt(m.faturamento,brl),p:planPro.faturamento?brl(planPro.faturamento):'—'},
+    {l:'Taxa Conv. R2→Venda',v:kfmt(m.taxaConv,v=>pct(v*100))},
+  ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div>${k.p?`<div class="km"><span class="kp">Meta: <b>${k.p}</b></span></div>`:''}</div>`).join('');
 
+  renderBurndownCharts();
   renderDimTable('p5camp','campCards',tr,ld,'Campaign Name','Campaign Status','utm_campaign',false);
   renderDimTable('p5adset','adsetCards',tr,ld,'Ad Set Name','Público Status','utm_content',false);
   renderDimTable('p5ad','adCards',tr,ld,'Ad Name','Criativo Status','utm_medium',true);
