@@ -696,7 +696,7 @@ function buildPeriod(period){
   return{labels,rows,allKeys,tP,lP,kP};
 }
 
-function renderWT(id,labels,rows){
+function renderWT(id,labels,rows,allKeys,periodType){
   if(!labels.length){document.getElementById(id).innerHTML='<div class="ls">Nenhum dado no período.</div>';return;}
   const ms=Object.keys(rows);
   // Filter out columns (periods) where Investimento is 0 or empty
@@ -706,11 +706,24 @@ function renderWT(id,labels,rows){
     return !isNaN(num)&&num>0;
   });
   const displayLabels=activeLabels.length>0?activeLabels:labels;
-  document.getElementById(id).innerHTML=`<table class="wt"><thead><tr><th>Métrica</th>${displayLabels.map(l=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${ms.map(m=>`<tr><td>${m}</td>${displayLabels.map(l=>`<td>${rows[m][l]||'—'}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  // Map label → period key for clickable cells
+  const lblToKey={};
+  if(allKeys) labels.forEach((l,i)=>{lblToKey[l]=allKeys[i];});
+  const CLICK_ROWS=new Set(['Leads','MQL']);
+  document.getElementById(id).innerHTML=`<table class="wt"><thead><tr><th>Métrica</th>${displayLabels.map(l=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${ms.map(m=>{
+    const isClick=allKeys&&periodType&&CLICK_ROWS.has(m);
+    return`<tr><td>${m}</td>${displayLabels.map(l=>{
+      const v=rows[m][l]||'—';
+      if(!isClick) return`<td>${v}</td>`;
+      const key=lblToKey[l]||'';
+      const metric=m==='MQL'?'mql':'leads';
+      return`<td class="td-click" data-period-key="${key}" data-period-type="${periodType}" data-metric="${metric}" data-tip="${v} — clique para detalhes" onclick="lmOpenPeriod(this)">${v}</td>`;
+    }).join('')}</tr>`;
+  }).join('')}</tbody></table>`;
 }
 
-function renderP3(){ const{labels,rows}=buildPeriod('week'); renderWT('p3tbl',labels,rows); renderWeeklyChart(); }
-function renderP4(){ const{labels,rows}=buildPeriod('month'); renderWT('p4tbl',labels,rows); renderMonthlyChart(); }
+function renderP3(){ const{labels,rows,allKeys}=buildPeriod('week');  renderWT('p3tbl',labels,rows,allKeys,'week');  renderWeeklyChart(); }
+function renderP4(){ const{labels,rows,allKeys}=buildPeriod('month'); renderWT('p4tbl',labels,rows,allKeys,'month'); renderMonthlyChart(); }
 
 // CHARTS
 function chartData(period,metric){
@@ -1058,6 +1071,17 @@ function lmOpenMql(){
 }
 function lmOpenMqla(){
   openLeadsModal('MQL A', fLeads().filter(r=>(r['Nível Qualificação']||'').trim().toUpperCase()==='A'));
+}
+
+// ── LEADS MODAL HANDLERS (p3/p4 period tables) ───────────────────────────────
+function lmOpenPeriod(el){
+  const key=el.dataset.periodKey;
+  const type=el.dataset.periodType;
+  const metric=el.dataset.metric;
+  const gk=type==='week'?wKey:mKey;
+  const rows=S.leads.filter(r=>{const k=gk(r['Data']||'');return k&&k.key===key;});
+  openLeadsModal(metric==='mql'?'MQL':'Leads',
+    metric==='mql'?rows.filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado'):rows);
 }
 
 // ── LEADS MODAL HANDLERS (p5 tables) ─────────────────────────────────────────
