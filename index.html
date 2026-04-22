@@ -87,6 +87,19 @@ table.wt tr:hover td:first-child{background:var(--surface2)}
 .chart-hd h3{font-size:13px;font-weight:600;color:var(--text)}
 .chart-sel{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;cursor:pointer}
 .chart-c{position:relative;height:200px}
+.var-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+.var-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.var-periods{font-size:11px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0}
+.var-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.var-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:3px}
+.var-name{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.var-vals{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.var-curr{font-size:15px;font-weight:700;color:var(--text)}
+.var-chg{font-size:11px;font-weight:700;padding:2px 5px;border-radius:4px;white-space:nowrap}
+.var-chg.up{background:var(--green-light);color:var(--green)}
+.var-chg.dn{background:var(--red-light);color:var(--red)}
+.var-chg.flat{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.var-prev{font-size:10px;color:var(--text3)}
 .funnel-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .fc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;max-height:280px;display:flex;flex-direction:column}
 .fc-hd{padding:9px 14px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
@@ -271,6 +284,7 @@ table.lm-tbl td:nth-child(2){color:var(--text);font-weight:500}
         <div class="panel"><div class="panel-hd"><h3>Tabela Semanal</h3></div>
           <div class="tbl-wrap" id="p3tbl"><div class="ls"><div class="spin"></div>Carregando...</div></div>
         </div>
+        <div class="mt12" id="p3var"></div>
         <div class="mt12 chart-box">
           <div class="chart-hd"><h3>Evolução Semanal</h3>
             <select class="chart-sel" id="p3m" onchange="renderWeeklyChart()">
@@ -288,6 +302,7 @@ table.lm-tbl td:nth-child(2){color:var(--text);font-weight:500}
         <div class="panel"><div class="panel-hd"><h3>Tabela Mensal</h3></div>
           <div class="tbl-wrap" id="p4tbl"><div class="ls"><div class="spin"></div>Carregando...</div></div>
         </div>
+        <div class="mt12" id="p4var"></div>
         <div class="mt12 chart-box">
           <div class="chart-hd"><h3>Evolução Mensal</h3>
             <select class="chart-sel" id="p4m" onchange="renderMonthlyChart()">
@@ -837,8 +852,32 @@ function renderWT(id,labels,rows,allKeys,periodType){
   }).join('')}</tbody></table>`;
 }
 
-function renderP3(){ const{labels,rows,allKeys}=buildPeriod('week');  renderWT('p3tbl',labels,rows,allKeys,'week');  renderWeeklyChart(); }
-function renderP4(){ const{labels,rows,allKeys}=buildPeriod('month'); renderWT('p4tbl',labels,rows,allKeys,'month'); renderMonthlyChart(); }
+function renderVariacoes(containerId, data){
+  const el=document.getElementById(containerId);
+  if(!el) return;
+  const{labels,rows}=data;
+  const parseV=s=>{
+    if(!s||s==='—') return null;
+    return parseFloat(s.replace(/[R$\s%]/g,'').replace(/\./g,'').replace(',','.'));
+  };
+  const active=labels.filter(l=>(parseV(rows['Investimento']?.[l])||0)>0);
+  if(active.length<2){el.innerHTML='';return;}
+  const curr=active[active.length-1], prev=active[active.length-2];
+  const VAR_METRICS=['Investimento','Leads','MQL','SQL','Agendamentos','R1 Realizada','R2 Realizada','Vendas'];
+  const cards=VAR_METRICS.map(m=>{
+    const cv=parseV(rows[m]?.[curr]), pv=parseV(rows[m]?.[prev]);
+    if(cv===null||pv===null) return null;
+    const chg=pv>0?((cv-pv)/pv)*100:(cv>0?100:0);
+    // Threshold 5%: estável abaixo de 5%, verde melhorou, vermelho piorou
+    const cls=Math.abs(chg)<5?'flat':chg>0?'up':'dn';
+    const arrow=cls==='flat'?'→':cls==='up'?'↑':'↓';
+    return`<div class="var-card"><div class="var-name">${m}</div><div class="var-vals"><span class="var-curr">${rows[m][curr]||'—'}</span><span class="var-chg ${cls}">${arrow} ${Math.abs(chg).toFixed(1)}%</span></div><div class="var-prev">vs ${rows[m][prev]||'—'}</div></div>`;
+  }).filter(Boolean);
+  el.innerHTML=`<div class="var-block"><div class="var-title">Variação <span class="var-periods">${curr} vs ${prev}</span></div><div class="var-grid">${cards.join('')}</div></div>`;
+}
+
+function renderP3(){ const d=buildPeriod('week');  renderWT('p3tbl',d.labels,d.rows,d.allKeys,'week');  renderVariacoes('p3var',d); renderWeeklyChart(); }
+function renderP4(){ const d=buildPeriod('month'); renderWT('p4tbl',d.labels,d.rows,d.allKeys,'month'); renderVariacoes('p4var',d); renderMonthlyChart(); }
 
 // CHARTS
 function chartData(period,metric){
