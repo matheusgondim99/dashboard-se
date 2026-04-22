@@ -824,15 +824,15 @@ function renderWT(id,labels,rows,allKeys,periodType){
   // Map label → period key for clickable cells
   const lblToKey={};
   if(allKeys) labels.forEach((l,i)=>{lblToKey[l]=allKeys[i];});
-  const CLICK_ROWS=new Set(['Leads','MQL']);
+  const CLICK_ROWS={'Leads':'leads','MQL':'mql','SQL':'sql','Agendamentos':'agendamentos','R1 Realizada':'r1','R2 Marcada':'r2m','R2 Realizada':'r2r','Vendas':'vendas'};
   document.getElementById(id).innerHTML=`<table class="wt"><thead><tr><th>Métrica</th>${displayLabels.map(l=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${ms.map(m=>{
-    const isClick=allKeys&&periodType&&CLICK_ROWS.has(m);
+    const metricKey=CLICK_ROWS[m];
+    const isClick=allKeys&&periodType&&!!metricKey;
     return`<tr><td>${m}</td>${displayLabels.map(l=>{
       const v=rows[m][l]||'—';
       if(!isClick) return`<td>${v}</td>`;
       const key=lblToKey[l]||'';
-      const metric=m==='MQL'?'mql':'leads';
-      return`<td class="td-click" data-period-key="${key}" data-period-type="${periodType}" data-metric="${metric}" data-tip="${v} — clique para detalhes" onclick="lmOpenPeriod(this)">${v}</td>`;
+      return`<td class="td-click" data-period-key="${key}" data-period-type="${periodType}" data-metric="${metricKey}" data-tip="${v} — clique para detalhes" onclick="lmOpenPeriod(this)">${v}</td>`;
     }).join('')}</tr>`;
   }).join('')}</tbody></table>`;
 }
@@ -1226,9 +1226,26 @@ function lmOpenPeriod(el){
   const type=el.dataset.periodType;
   const metric=el.dataset.metric;
   const gk=type==='week'?wKey:mKey;
-  const rows=S.leads.filter(r=>{const k=gk(r['Data']||'');return k&&k.key===key;});
-  openLeadsModal(metric==='mql'?'MQL':'Leads',
-    metric==='mql'?rows.filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado'):rows);
+  // Sheet-based metrics
+  if(metric==='leads'||metric==='mql'||metric==='sql'){
+    const rows=S.leads.filter(r=>{const k=gk(r['Data']||'');return k&&k.key===key;});
+    if(metric==='mql') return openLeadsModal('MQL',rows.filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado'));
+    if(metric==='sql') return openLeadsModal('SQL',rows.filter(r=>['A','B'].includes((r['Nível Qualificação']||'').trim().toUpperCase())));
+    return openLeadsModal('Leads',rows);
+  }
+  // Kommo-based metrics — filter by stage ID set
+  const kLeads=S.kommo.filter(l=>{const k=gk(l.entry_date||'');return k&&k.key===key;});
+  const filters={
+    'agendamentos':l=>CLOSER_AGENDADO_IDS.has(l.status_id),
+    'r1':l=>R1_REALIZADA_IDS.has(l.status_id),
+    'r2m':l=>R2_MARCADA_IDS.has(l.status_id),
+    'r2r':l=>R2_REALIZADA_IDS.has(l.status_id),
+    'vendas':l=>VENDAS_IDS.has(l.status_id),
+  };
+  const titles={'agendamentos':'Agendamentos','r1':'R1 Realizadas','r2m':'R2 Marcadas','r2r':'R2 Realizadas','vendas':'Vendas'};
+  const filtered=kLeads.filter(filters[metric]||(()=>true));
+  const rows=filtered.map(l=>({'Data':l.entry_date||'','Nome':l.name||'—','Telefone':l.phone_digits||l.phone||'—'}));
+  openLeadsModal(titles[metric]||metric, rows);
 }
 
 // ── LEADS MODAL HANDLERS (p5 tables) ─────────────────────────────────────────
