@@ -767,37 +767,46 @@ function buildPeriod(period){
   S.leads.forEach(r=>{const k=gk(r['Data']||'');if(!k)return;if(!lP[k.key])lP[k.key]={meta:k,rows:[]};lP[k.key].rows.push(r);});
   S.kommo.forEach(l=>{const k=gk(l.entry_date||'');if(!k)return;if(!kP[k.key])kP[k.key]={meta:k,leads:[]};kP[k.key].leads.push(l);});
 
-  // Sort chronologically
   const allKeys=[...new Set([...Object.keys(tP),...Object.keys(lP),...Object.keys(kP)])].sort();
   const labels=allKeys.map(k=>(tP[k]||lP[k]||kP[k]).meta.label);
-  const metrics=['Investimento','Impressões','Cliques','CPM','CPC','Leads','CPL','MQL','% Qualificação','Custo MQL','Respostas','% Respostas','SQL','Custo SQL','R1 Marcada','R1 Realizada','% Comparecimento R1','Custo R1','R2 Marcada','R2 Realizada','% Comparecimento R2','Faturamento','CAC','MRR Adicionado'];
+  const metrics=['Investimento','Impressões','Cliques','CPM','CTR','CPC','Leads','CPL','MQL','% Qualificação','Custo MQL','Respostas','% Respostas','SQL','Custo SQL','Agendamentos','R1 Realizada','% Comparecimento R1','Custo R1','R2 Marcada','R2 Realizada','% Comparecimento R2','Vendas','% Conversão','Faturamento','CAC','MRR Adicionado'];
   const rows={};
   metrics.forEach(m=>rows[m]={});
 
   allKeys.forEach((key,i)=>{
     const lbl=labels[i];
     const tr=(tP[key]||{}).rows||[], lr=(lP[key]||{}).rows||[], km=(kP[key]||{}).leads||[];
-    const ta=aTraffic(tr), la=aLeads(lr);
+    const ta=aTraffic(tr);
     const inv=ta.investimento, imp=ta.impressoes, cl=ta.cliques;
-    const lds=km.length>0?km.length:(ta.leads_traf||lr.length);
-    // MQL from sheet
-    const mql=la.mql, sql=la.sql;
-    const r1m=cStage('R1 Marcada',km), r1r=cStage('R1 Realizada',km);
-    const r2m=cStage('R2 Marcada',km), r2r=cStage('R2 Realizada',km);
-    const vnd=cStage('Venda',km), fat=getMRR(km), cac=vnd>0?inv/vnd:0;
+    const m=buildMetrics(lr, km, inv);
 
-    rows['Investimento'][lbl]=brl(inv); rows['Impressões'][lbl]=nn(imp); rows['Cliques'][lbl]=nn(cl);
-    rows['CPM'][lbl]=brl(imp>0?(inv/imp)*1000:0); rows['CPC'][lbl]=brl(cl>0?inv/cl:0);
-    rows['Leads'][lbl]=nn(lds); rows['CPL'][lbl]=brl(lds>0?inv/lds:0);
-    rows['MQL'][lbl]=nn(mql); rows['% Qualificação'][lbl]=pct(lds>0?(mql/lds)*100:0);
-    rows['Custo MQL'][lbl]=brl(mql>0?inv/mql:0);
-    rows['Respostas'][lbl]=nn(lr.length); rows['% Respostas'][lbl]=pct(lds>0?(lr.length/lds)*100:0);
-    rows['SQL'][lbl]=nn(sql); rows['Custo SQL'][lbl]=brl(sql>0?inv/sql:0);
-    rows['R1 Marcada'][lbl]=nn(r1m); rows['R1 Realizada'][lbl]=nn(r1r);
-    rows['% Comparecimento R1'][lbl]=pct(r1m>0?(r1r/r1m)*100:0); rows['Custo R1'][lbl]=brl(r1r>0?inv/r1r:0);
-    rows['R2 Marcada'][lbl]=nn(r2m); rows['R2 Realizada'][lbl]=nn(r2r);
-    rows['% Comparecimento R2'][lbl]=pct(r2m>0?(r2r/r2m)*100:0);
-    rows['Faturamento'][lbl]=brl(fat); rows['CAC'][lbl]=brl(cac); rows['MRR Adicionado'][lbl]=brl(fat);
+    rows['Investimento'][lbl]=brl(inv);
+    rows['Impressões'][lbl]=nn(imp);
+    rows['Cliques'][lbl]=nn(cl);
+    rows['CPM'][lbl]=brl(imp>0?(inv/imp)*1000:0);
+    rows['CTR'][lbl]=pct(imp>0?(cl/imp)*100:0);
+    rows['CPC'][lbl]=brl(cl>0?inv/cl:0);
+    rows['Leads'][lbl]=nn(m.leads);
+    rows['CPL'][lbl]=brl(m.cpl);
+    rows['MQL'][lbl]=nn(m.mql);
+    rows['% Qualificação'][lbl]=pct(m.qualMql*100);
+    rows['Custo MQL'][lbl]=brl(m.custoMql);
+    rows['Respostas'][lbl]=nn(m.respostas);
+    rows['% Respostas'][lbl]=pct(m.taxaResp*100);
+    rows['SQL'][lbl]=nn(m.sql);
+    rows['Custo SQL'][lbl]=brl(m.custoSql);
+    rows['Agendamentos'][lbl]=nn(m.agend);
+    rows['R1 Realizada'][lbl]=nn(m.r1);
+    rows['% Comparecimento R1'][lbl]=pct(m.taxaR1*100);
+    rows['Custo R1'][lbl]=brl(m.cpr1);
+    rows['R2 Marcada'][lbl]=nn(m.r2m);
+    rows['R2 Realizada'][lbl]=nn(m.r2r);
+    rows['% Comparecimento R2'][lbl]=pct(m.taxaR2*100);
+    rows['Vendas'][lbl]=nn(m.vendas);
+    rows['% Conversão'][lbl]=pct(m.taxaConv*100);
+    rows['Faturamento'][lbl]=brl(m.faturamento);
+    rows['CAC'][lbl]=brl(m.cac);
+    rows['MRR Adicionado'][lbl]=brl(m.mrr);
   });
   return{labels,rows,allKeys,tP,lP,kP};
 }
