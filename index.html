@@ -27,6 +27,11 @@ nav a.active{background:var(--sidebar-active);color:#fff}
 nav a .icon{font-size:14px;width:18px;text-align:center;opacity:.8}
 nav a.active .icon{opacity:1}
 .sidebar-footer{margin-top:auto;padding:14px;border-top:1px solid rgba(255,255,255,.08)}
+.sub-nav{overflow:hidden;max-height:0;transition:max-height .25s ease}
+.sub-nav.open{max-height:200px}
+.sub-nav a{padding-left:28px!important;font-size:12px!important}
+.subnav-arrow{margin-left:auto;font-style:normal;transition:transform .2s;display:inline-block}
+nav a.parent.expanded .subnav-arrow{transform:rotate(90deg)}
 .kommo-btn{width:100%;padding:8px 12px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--sidebar-text);font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:center;transition:all .2s}
 .kommo-btn:hover{border-color:rgba(255,255,255,.3);color:#fff}
 .kommo-btn.connected{border-color:#22c55e;color:#22c55e}
@@ -220,23 +225,20 @@ table.lm-tbl td:nth-child(2){color:var(--text);font-weight:500}
       </div>
     </div>
     <div class="sidebar-section">
+      <nav>
+        <a class="active" onclick="showPage('page1',this)"><span class="icon">🏠</span>Visão Geral</a>
+      </nav>
+    </div>
+    <div class="sidebar-section">
       <div class="sidebar-section-label">Funil</div>
       <nav>
-        <a class="active" onclick="showPage('page1',this)"><span class="icon">📊</span>Visão Geral</a>
-        <a onclick="showPage('page2',this)"><span class="icon">📋</span>Totais</a>
-      </nav>
-    </div>
-    <div class="sidebar-section">
-      <div class="sidebar-section-label">Histórico</div>
-      <nav>
-        <a onclick="showPage('page3',this)"><span class="icon">📅</span>Semanas</a>
-        <a onclick="showPage('page4',this)"><span class="icon">🗓️</span>Meses</a>
-      </nav>
-    </div>
-    <div class="sidebar-section">
-      <div class="sidebar-section-label">Tráfego</div>
-      <nav>
-        <a onclick="showPage('page5',this)"><span class="icon">📣</span>Campanhas</a>
+        <a class="parent" onclick="showPage('page6',this);toggleSubNav(this)"><span class="icon">🎯</span>SE<span class="subnav-arrow">›</span></a>
+        <div class="sub-nav">
+          <a onclick="showPage('page2',this)"><span class="icon">📋</span>Totais</a>
+          <a onclick="showPage('page5',this)"><span class="icon">📣</span>Marketing</a>
+          <a onclick="showPage('page3',this)"><span class="icon">📅</span>Semanas</a>
+          <a onclick="showPage('page4',this)"><span class="icon">🗓️</span>Meses</a>
+        </div>
       </nav>
     </div>
     <div class="sidebar-footer">
@@ -1337,13 +1339,19 @@ async function connectKommo(){
 }
 
 // NAV
-const TITLES={page1:'Visão Geral do Funil',page2:'Dados Totais — Planejado vs Realizado',page3:'Dados Semanais',page4:'Dados Mensais',page5:'Tráfego Pago'};
+const TITLES={page1:'Visão Geral do Funil',page2:'Dados Totais — Planejado vs Realizado',page3:'Dados Semanais',page4:'Dados Mensais',page5:'Marketing',page6:'SE — Funil de Vendas'};
 function showPage(id,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  document.querySelectorAll('nav a').forEach(a=>a.classList.remove('active'));
+  document.querySelectorAll('nav a:not(.parent)').forEach(a=>a.classList.remove('active'));
+  document.querySelectorAll('nav a.parent').forEach(a=>a.classList.remove('active'));
   if(el) el.classList.add('active');
   document.getElementById('pageTitle').textContent=TITLES[id]||'';
+}
+function toggleSubNav(el){
+  el.classList.toggle('expanded');
+  const sub=el.nextElementSibling;
+  if(sub&&sub.classList.contains('sub-nav')) sub.classList.toggle('open');
 }
 
 // INIT
