@@ -1003,13 +1003,27 @@ function renderP5(){
   ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div>${k.p?`<div class="km"><span class="kp">Meta: <b>${k.p}</b></span></div>`:''}</div>`).join('');
 
   renderBurndownCharts();
-  renderDimTable('p5camp','campCards',tr,ld,'Campaign Name','Campaign Status','utm_campaign',false);
-  renderDimTable('p5adset','adsetCards',tr,ld,'Ad Set Name','Público Status','utm_content',false);
-  renderDimTable('p5ad','adCards',tr,ld,'Ad Name','Criativo Status','utm_medium',true);
+  const kf=fKommo();
+  renderDimTable('p5camp','campCards',tr,ld,kf,'Campaign Name','Campaign Status','utm_campaign',false);
+  renderDimTable('p5adset','adsetCards',tr,ld,kf,'Ad Set Name','Público Status','utm_content',false);
+  renderDimTable('p5ad','adCards',tr,ld,kf,'Ad Name','Criativo Status','utm_medium',true);
 }
 
-function renderDimTable(tid,cid,trafficRows,leadsRows,trafField,statusField,utmField,showLink){
-  // Group traffic by dimension
+function dtSort(th){
+  const tbl=th.closest('table'), idx=Array.from(th.parentElement.children).indexOf(th);
+  const asc=th.dataset.dir!=='asc';
+  th.parentElement.querySelectorAll('th').forEach(t=>delete t.dataset.dir);
+  th.dataset.dir=asc?'asc':'desc';
+  const tbody=tbl.querySelector('tbody');
+  [...tbody.querySelectorAll('tr')].sort((a,b)=>{
+    const av=a.cells[idx]?.textContent.trim()||'', bv=b.cells[idx]?.textContent.trim()||'';
+    const an=parseFloat(av.replace(/[R$\s.%×]/g,'').replace(',','.')), bn=parseFloat(bv.replace(/[R$\s.%×]/g,'').replace(',','.'));
+    const c=isNaN(an)||isNaN(bn)?av.localeCompare(bv,'pt-BR'):an-bn;
+    return asc?c:-c;
+  }).forEach(r=>tbody.appendChild(r));
+}
+
+function renderDimTable(tid,cid,trafficRows,leadsRows,kommoLeads,trafField,statusField,utmField,showLink){
   const tGroups={};
   trafficRows.forEach(r=>{
     const k=(r[trafField]||'Desconhecido').trim();
@@ -1018,7 +1032,6 @@ function renderDimTable(tid,cid,trafficRows,leadsRows,trafField,statusField,utmF
     tGroups[k].status=r[statusField]||tGroups[k].status;
   });
 
-  // Build link map: utm_medium → first Link Criativo found
   const linkMap={};
   leadsRows.forEach(r=>{
     const med=(r['utm_medium']||'').trim();
@@ -1036,29 +1049,31 @@ function renderDimTable(tid,cid,trafficRows,leadsRows,trafField,statusField,utmF
     `<div class="ms red"><div class="msl">Inativos</div><div class="msv">${inactive}</div></div>`+
     `<div class="ms"><div class="msl">Média/dia</div><div class="msv">${brl(totalInv/days)}</div></div>`;
 
-  // Build rows — cross ref leads by exact UTM match
+  const kommoFld=utmField==='utm_campaign'?'utm_campaign':utmField==='utm_content'?'utm_content':null;
+  const kommoOk=kommoLeads.length>0&&kommoState!=='error';
+
   const rows=Object.entries(tGroups).map(([name,g])=>{
-    const ta=aTraffic(g.rows);
-    const inv=ta.investimento;
-    // Match leads whose utm field exactly equals this dimension name
+    const ta=aTraffic(g.rows), inv=ta.investimento;
     const gl=leadsRows.filter(r=>(r[utmField]||'').trim()===name);
-    const la=aLeads(gl);
-    // Leads: count from sheet responses, not Meta Ads
-    const lds=gl.length;
-    const mql=la.mql;
+    const lds=gl.length, mql=aLeads(gl).mql;
     const link=linkMap[name]||'';
-    return{name,inv,lds,cpl:lds>0?inv/lds:0,mql,cplq:mql>0?inv/mql:0,status:g.status,link};
+    const kl=kommoFld&&kommoOk?kommoLeads.filter(k=>(k[kommoFld]||'').trim()===name):[];
+    const r2r=kl.filter(k=>R2_REALIZADA_IDS.has(k.status_id)).length;
+    const vendas=kl.filter(k=>VENDAS_IDS.has(k.status_id)).length;
+    return{name,inv,lds,cpl:lds>0?inv/lds:0,mql,cplq:mql>0?inv/mql:0,r2r,vendas,status:g.status,link};
   }).sort((a,b)=>b.inv-a.inv);
 
-  const linkCol=showLink?'<th>Link</th>':'';
+  const th=s=>`<th onclick="dtSort(this)" style="cursor:pointer;white-space:nowrap">${s}</th>`;
+  const linkCol=showLink?th('Link'):'';
+  const r2cols=kommoFld&&kommoOk?th('R2')+th('Vendas'):'';
   document.getElementById(tid).innerHTML=`<table class="dt"><thead><tr>
-    <th>Nome</th><th>Invest.</th><th>Leads</th><th>CPL</th>
-    <th>MQL</th><th>Custo MQL</th><th>Status</th>${linkCol}
+    ${th('Nome')}${th('Invest.')}${th('Leads')}${th('CPL')}${th('MQL')}${th('Custo MQL')}${r2cols}${th('Status')}${linkCol}
   </tr></thead><tbody>${rows.map(r=>{
-    const linkCell=showLink
-      ?`<td>${r.link?`<a href="${r.link}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;">🔗 Ver</a>`:'—'}</td>`
-      :'';
     const esc=r.name.replace(/"/g,'&quot;');
+    const linkCell=showLink?`<td>${r.link?`<a href="${r.link}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;">🔗 Ver</a>`:'—'}</td>`:'';
+    const r2cells=kommoFld&&kommoOk
+      ?`<td class="td-click" data-utm-fld="${kommoFld}" data-name="${esc}" data-stage="r2r" onclick="lmOpenDimKommo(this)">${nn(r.r2r)}</td>`+
+        `<td class="td-click" data-utm-fld="${kommoFld}" data-name="${esc}" data-stage="vendas" onclick="lmOpenDimKommo(this)">${nn(r.vendas)}</td>`:'';
     return`<tr>
       <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left" title="${r.name}">${r.name}</td>
       <td>${brl(r.inv)}</td>
@@ -1066,6 +1081,7 @@ function renderDimTable(tid,cid,trafficRows,leadsRows,trafField,statusField,utmF
       <td>${brl(r.cpl)}</td>
       <td class="td-click" data-utm="${utmField}" data-name="${esc}" data-tip="${r.mql} ${r.mql===1?'lead':'leads'} — clique para detalhes" onclick="lmOpenDimMql(this)">${nn(r.mql)}</td>
       <td>${brl(r.cplq)}</td>
+      ${r2cells}
       <td><span style="color:${/^(active|ativo|on)$/i.test((r.status||'').trim())?'var(--green)':'var(--red)'}">●</span></td>
       ${linkCell}
     </tr>`;
@@ -1360,6 +1376,14 @@ function lmOpenDimLeads(el){
 function lmOpenDimMql(el){
   const all=fLeads().filter(r=>(r[el.dataset.utm]||'').trim()===el.dataset.name);
   openLeadsModal('MQL',all.filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado'));
+}
+function lmOpenDimKommo(el){
+  const fld=el.dataset.utmFld, name=el.dataset.name, stage=el.dataset.stage;
+  const filters={'r2r':l=>R2_REALIZADA_IDS.has(l.status_id),'vendas':l=>VENDAS_IDS.has(l.status_id)};
+  const titles={'r2r':'R2 Realizadas','vendas':'Vendas'};
+  const kl=fKommo().filter(k=>(k[fld]||'').trim()===name).filter(filters[stage]||(()=>true));
+  const rows=kl.map(l=>({'Data':l.entry_date||'','Nome':l.name||'—','Telefone':l.phone_digits||l.phone||'—'}));
+  openLeadsModal(titles[stage]||stage, rows);
 }
 
 // ── LEADS MODAL ──────────────────────────────────────────────────────────────
