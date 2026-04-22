@@ -750,13 +750,16 @@ function renderP5(){
 
   document.getElementById('p5kpis').innerHTML=[
     {l:'Investimento',v:brl(inv),p:brl(plan.investimento),d:delt(inv,plan.investimento)},
-    {l:'Leads',v:nn(rl),p:nn(plan.leads),d:delt(rl,plan.leads)},
+    {l:'Leads',v:nn(rl),p:nn(plan.leads),d:delt(rl,plan.leads),fn:'lmOpenLeads',tip:rl},
     {l:'CPL',v:brl(rl>0?inv/rl:0),p:'—',d:null},
-    {l:'MQL',v:nn(mql),p:nn(plan.mql),d:delt(mql,plan.mql)},
+    {l:'MQL',v:nn(mql),p:nn(plan.mql),d:delt(mql,plan.mql),fn:'lmOpenMql',tip:mql},
     {l:'Custo MQL',v:brl(mql>0?inv/mql:0),p:'—',d:null},
-    {l:'MQL A',v:nn(la.mqla),p:'—',d:null},
+    {l:'MQL A',v:nn(la.mqla),p:'—',d:null,fn:'lmOpenMqla',tip:la.mqla},
     {l:'Custo MQL A',v:brl(la.mqla>0?inv/la.mqla:0),p:'—',d:null},
-  ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div><div class="km"><span class="kp">Meta: <b>${k.p}</b></span>${db(k.d)}</div></div>`).join('');
+  ].map(k=>`<div class="kpi${k.fn?' clickable':''}"${k.fn?` onclick="${k.fn}()" data-tip="${k.tip} ${k.tip===1?'lead':'leads'} — clique para detalhes"`:''}>
+    <div class="kl">${k.l}</div><div class="kv">${k.v}</div>
+    <div class="km"><span class="kp">Meta: <b>${k.p}</b></span>${db(k.d)}</div>
+  </div>`).join('');
 
   document.getElementById('p5fin').innerHTML=[
     {l:'ROAS',v:'—'},{l:'CAC',v:'—'},{l:'Faturamento',v:'—'},{l:'Taxa Conv. R2→Venda',v:'—'}
@@ -1033,6 +1036,17 @@ async function autoAuthKommo(){
     txt.textContent='Autenticar Kommo';
     console.log('[Kommo] Auto-auth failed:', e.message);
   }
+}
+
+// ── LEADS MODAL HANDLERS (p5 top cards) ─────────────────────────────────────
+function lmOpenLeads(){
+  openLeadsModal('Leads', fLeads());
+}
+function lmOpenMql(){
+  openLeadsModal('MQL', fLeads().filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado'));
+}
+function lmOpenMqla(){
+  openLeadsModal('MQL A', fLeads().filter(r=>(r['Nível Qualificação']||'').trim().toUpperCase()==='A'));
 }
 
 // ── LEADS MODAL ──────────────────────────────────────────────────────────────
