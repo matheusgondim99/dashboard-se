@@ -531,14 +531,17 @@ function renderP1(){
 
   document.getElementById('p1top').innerHTML=[
     {l:'Investimento',       v:brl(inv),  p:brl(plan.investimento),  d:delt(inv,plan.investimento)},
-    {l:'Leads',              v:nn(rl),    p:nn(plan.leads),           d:delt(rl,plan.leads)},
-    {l:'Leads Qualificados', v:nn(rmql),  p:nn(plan.mql),             d:delt(rmql,plan.mql)},
+    {l:'Leads',              v:nn(rl),    p:nn(plan.leads),           d:delt(rl,plan.leads),  fn:'lmOpenLeads', tip:la.total},
+    {l:'Leads Qualificados', v:nn(rmql),  p:nn(plan.mql),             d:delt(rmql,plan.mql), fn:'lmOpenMql',   tip:rmql},
     {l:'R1 Realizadas',      v:nn(r1r),   p:nn(plan.r1),              d:delt(r1r,plan.r1)},
     {l:'R2 Realizadas',      v:nn(r2r),   p:nn(plan.r2),              d:delt(r2r,plan.r2)},
     {l:'Vendas',             v:nn(rv),    p:nn(plan.vendas),           d:delt(rv,plan.vendas)},
     {l:'Faturamento',        v:brl(rf),   p:brl(plan.faturamento),    d:delt(rf,plan.faturamento)},
     {l:'MRR Adicionado',     v:brl(rf),   p:'—',                      d:null},
-  ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div><div class="km"><span class="kp">Meta: <b>${k.p}</b></span>${db(k.d)}</div></div>`).join('');
+  ].map(k=>`<div class="kpi${k.fn?' clickable':''}"${k.fn?` onclick="${k.fn}()" data-tip="${k.tip} ${k.tip===1?'lead':'leads'} — clique para detalhes"`:''}>
+    <div class="kl">${k.l}</div><div class="kv">${k.v}</div>
+    <div class="km"><span class="kp">Meta: <b>${k.p}</b></span>${db(k.d)}</div>
+  </div>`).join('');
 
   const cac=rv>0?inv/rv:plan.cac||0;
   const roas=inv>0?rf/inv:0;
@@ -775,8 +778,9 @@ function renderDimTable(tid,cid,trafficRows,leadsRows,trafField,statusField,utmF
   const tGroups={};
   trafficRows.forEach(r=>{
     const k=(r[trafField]||'Desconhecido').trim();
-    if(!tGroups[k]) tGroups[k]={rows:[],status:r[statusField]||''};
+    if(!tGroups[k]) tGroups[k]={rows:[],status:''};
     tGroups[k].rows.push(r);
+    tGroups[k].status=r[statusField]||tGroups[k].status;
   });
 
   // Build link map: utm_medium → first Link Criativo found
