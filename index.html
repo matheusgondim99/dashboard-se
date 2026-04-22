@@ -741,10 +741,17 @@ function renderP2(){
 // PERIOD UTILS
 function wKey(ds){
   const d=pd(ds); if(!d||isNaN(d)) return null;
-  const y=d.getFullYear(), jan1=new Date(y,0,1);
-  const w=Math.ceil(((d-jan1)/86400000+jan1.getDay()+1)/7);
-  // Sort key: YYYY-WW so sorting by key gives chronological order
-  return{key:`${y}-${String(w).padStart(2,'0')}`,label:`S${w}`,sort:`${y}${String(w).padStart(2,'0')}`};
+  const MN=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  // Monday of the ISO week
+  const day=d.getDay(); const diff=day===0?-6:1-day;
+  const mon=new Date(d); mon.setDate(d.getDate()+diff);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  const my=mon.getFullYear(), sy=sun.getFullYear();
+  const crossYear=my!==sy;
+  const fmt=(dt,showY)=>`${dt.getDate()}/${MN[dt.getMonth()]}${showY?`/${String(dt.getFullYear()).slice(2)}`:''}`;
+  const label=crossYear?`${fmt(mon,true)} – ${fmt(sun,true)}`:`${fmt(mon,false)} – ${fmt(sun,false)}`;
+  const sortKey=`${my}${String(mon.getMonth()+1).padStart(2,'0')}${String(mon.getDate()).padStart(2,'0')}`;
+  return{key:sortKey,label,sort:sortKey};
 }
 function mKey(ds){
   const d=pd(ds); if(!d||isNaN(d)) return null;
