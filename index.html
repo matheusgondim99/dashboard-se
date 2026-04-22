@@ -177,6 +177,13 @@ table.lm-tbl td:nth-child(2){color:var(--text);font-weight:500}
   </div>
 </div>
 
+<div class="lm-ov hidden" id="debugModal" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="lm-card" style="width:680px;max-width:95vw">
+    <div class="lm-hd"><h3>⚙ Debug buildMetrics()</h3><button class="lm-close" onclick="document.getElementById('debugModal').classList.add('hidden')">✕</button></div>
+    <div class="lm-body" id="debugBody" style="padding:16px;font-family:monospace;font-size:12px"></div>
+  </div>
+</div>
+
 <div class="lm-ov hidden" id="leadsModal" onclick="lmClickOverlay(event)">
   <div class="lm-card">
     <div class="lm-hd">
@@ -238,6 +245,7 @@ table.lm-tbl td:nth-child(2){color:var(--text);font-weight:500}
           </select>
         </div>
         <button class="btn-refresh" onclick="loadAllData()">↻ Atualizar</button>
+        <button class="btn-refresh" id="debugBtn" onclick="showDebugMetrics()" style="background:rgba(234,179,8,.15);border-color:rgba(234,179,8,.4);color:#fbbf24;display:none" title="Debug buildMetrics()">⚙ Debug</button>
       </div>
     </div>
 
@@ -508,8 +516,86 @@ function aLeads(rows){
   return{total,mql,sql,mqla};
 }
 
-// KOMMO STAGES
+// KOMMO STAGES (mapped names — used by existing p1 renders)
 const STAGES=['Em contato inicial','Em Atendimento','Grupo Imersão','R1 Marcada','R1 Realizada','R2 Marcada','R2 Realizada','Negociação','Venda'];
+
+// FUNIL SE — raw Kommo stage IDs (used by buildMetrics)
+const SDR_PIPELINE_ID=13105099, CLOSER_PIPELINE_ID=11997467;
+const SDR_RESPONDEU_IDS=new Set([101050167,101050171,101050175,101110655,101050179,101050183]);
+const CLOSER_AGENDADO_IDS=new Set([101050963,101050967,101050971,101050975,101050979,101050983,101050987,101432887,92530343,101109599,101050991,101050995,92530459,142]);
+const R1_REALIZADA_IDS=new Set([101050971,101050975,101050979,101050983,101050987,101432887,92530343,101109599,101050991,101050995,92530459,142]);
+const R2_MARCADA_IDS=new Set([101050975,101050979,101050983,101050987,101432887,92530343,101109599,101050991,101050995,92530459,142]);
+const R2_REALIZADA_IDS=new Set([101050983,101050987,101432887,92530343,101109599,101050991,101050995,92530459,142]);
+const VENDAS_IDS=new Set([92530459,142]);
+
+function normPhone(p){ return(p||'').replace(/\D/g,'').replace(/^55/,'').slice(-9); }
+
+// Universal metrics dictionary — cross-matches planilha SE leads with Kommo leads
+function buildMetrics(leadsRows, kommoLeads, investimento){
+  if(!kommoLeads||!kommoLeads.length) return _emptyMetrics(leadsRows,investimento);
+
+  // Build phone/email lookup from Kommo
+  const byPhone={}, byEmail={};
+  kommoLeads.forEach(k=>{
+    const p=normPhone(k.phone_digits||k.phone||'');
+    if(p&&!byPhone[p]) byPhone[p]=k;
+    const e=(k.email||'').toLowerCase().trim();
+    if(e&&!byEmail[e]) byEmail[e]=k;
+  });
+
+  // Match each planilha lead → Kommo lead (phone first, email fallback, deduplicate by Kommo ID)
+  const matched=new Map();
+  leadsRows.forEach(r=>{
+    const phone=normPhone(r['Telefone']||'');
+    const email=((r['Email']||r['E-mail']||'').toLowerCase().trim());
+    const k=(phone&&byPhone[phone])||(email&&byEmail[email])||null;
+    if(k&&!matched.has(k.id)) matched.set(k.id,k);
+  });
+  const km=[...matched.values()];
+
+  const leads=leadsRows.length;
+  const mql=leadsRows.filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado').length;
+  const mqla=leadsRows.filter(r=>(r['Nível Qualificação']||'').trim().toUpperCase()==='A').length;
+  const qualMql=leads>0?mql/leads:0;
+
+  const respostas=km.filter(k=>SDR_RESPONDEU_IDS.has(k.status_id)||k.pipeline_id===CLOSER_PIPELINE_ID).length;
+  const taxaResp=leads>0?respostas/leads:0;
+  const sql=km.filter(k=>(k.sql||'').trim().toLowerCase()==='sim').length;
+  const taxaSql=leads>0?sql/leads:0;
+  const agend=km.filter(k=>CLOSER_AGENDADO_IDS.has(k.status_id)).length;
+  const taxaAgend=sql>0?agend/sql:0;
+  const r1=km.filter(k=>R1_REALIZADA_IDS.has(k.status_id)).length;
+  const taxaR1=agend>0?r1/agend:0;
+  const r2m=km.filter(k=>R2_MARCADA_IDS.has(k.status_id)).length;
+  const r2r=km.filter(k=>R2_REALIZADA_IDS.has(k.status_id)).length;
+  const taxaR2=r2m>0?r2r/r2m:0;
+  const vendas=km.filter(k=>VENDAS_IDS.has(k.status_id)).length;
+  const taxaConv=r2r>0?vendas/r2r:0;
+  const faturamento=km.filter(k=>VENDAS_IDS.has(k.status_id)).reduce((a,k)=>a+(k.price||0),0);
+  const mrr=km.filter(k=>VENDAS_IDS.has(k.status_id)).reduce((a,k)=>a+(k.mrrNum||0),0);
+
+  const cpl=leads>0?investimento/leads:0;
+  const custoMql=mql>0?investimento/mql:0;
+  const custoSql=sql>0?investimento/sql:0;
+  const cpr1=r1>0?investimento/r1:0;
+  const cpr2=r2r>0?investimento/r2r:0;
+  const cac=vendas>0?investimento/vendas:0;
+  const roas=investimento>0?faturamento/investimento:0;
+  const ticket=vendas>0?faturamento/vendas:0;
+
+  return{leads,mql,mqla,qualMql,respostas,taxaResp,sql,taxaSql,agend,taxaAgend,
+    r1,taxaR1,cpr1,r2m,r2r,taxaR2,cpr2,vendas,taxaConv,faturamento,mrr,
+    cac,roas,ticket,cpl,custoMql,custoSql,_km:km};
+}
+function _emptyMetrics(leadsRows,investimento){
+  const leads=leadsRows.length;
+  const mql=leadsRows.filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado').length;
+  const mqla=leadsRows.filter(r=>(r['Nível Qualificação']||'').trim().toUpperCase()==='A').length;
+  const cpl=leads>0?investimento/leads:0, custoMql=mql>0?investimento/mql:0;
+  return{leads,mql,mqla,qualMql:leads>0?mql/leads:0,respostas:0,taxaResp:0,sql:0,taxaSql:0,
+    agend:0,taxaAgend:0,r1:0,taxaR1:0,cpr1:0,r2m:0,r2r:0,taxaR2:0,cpr2:0,
+    vendas:0,taxaConv:0,faturamento:0,mrr:0,cac:0,roas:0,ticket:0,cpl,custoMql,custoSql:0,_km:[]};
+}
 
 function cStage(stage,arr){ // cumulative
   const si=STAGES.indexOf(stage); if(si===-1) return(arr||fKommo()).filter(l=>l.stage===stage).length;
@@ -1001,12 +1087,17 @@ async function connectKommo(){
       const raw=stagesMap[lead.status_id]||'', mapped=mapStage(raw);
       const dbgEmail=extractEmail(cf,cd), dbgPhone=extractPhone(cf,cd);
       console.log(`[K] "${raw}" → "${mapped}" | email: "${dbgEmail}" | phone: "${dbgPhone.slice(-9)}" | cf_codes: ${JSON.stringify(cf.map(f=>f.field_code).filter(Boolean))}`);
+      const parseMRR=s=>{const r=(s||'').replace(/[R$\s]/g,'').replace(/\./g,'').replace(',','.');return parseFloat(r)||0;};
       return{
         id:lead.id, name:lead.name||cd.name||'—',
         phone:g(cf,'telefone')||g(cf,'phone')||'',
         instagram:g(cf,'instagram')||'',
         stage:mapped,
+        status_id:lead.status_id||0,
+        pipeline_id:lead.pipeline_id||0,
+        price:lead.price||0,
         mrr:g(lf,'mrr')||String(lead.price||''),
+        mrrNum:parseMRR(g(lf,'mrr')),
         situacao:g(lf,'situação')||g(lf,'situacao')||'',
         sql:g(lf,'sql')||'', sal:g(lf,'sal')||'', abordagem:g(lf,'abordagem')||'',
         entry_date:lead.created_at?new Date(lead.created_at*1000).toLocaleDateString('pt-BR'):'',
@@ -1056,11 +1147,14 @@ function updateKommoBtn(){
   if(kommoState==='connected'){
     btn.classList.add('connected');
     txt.textContent=`Kommo · ${S.kommo.length} leads`;
+    toggleDebugBtn(true);
   } else if(kommoState==='error'){
     btn.classList.add('kommo-error');
     txt.textContent='Kommo indisponível';
+    toggleDebugBtn(false);
   } else {
     txt.textContent='Autenticar Kommo';
+    toggleDebugBtn(false);
   }
 }
 
@@ -1173,7 +1267,48 @@ function lmClickOverlay(e){
   if(e.target===document.getElementById('leadsModal')) closeLeadsModal();
 }
 
-document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeLeadsModal(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeLeadsModal(); document.getElementById('debugModal').classList.add('hidden'); } });
+
+// SPRINT 2.5 — Debug buildMetrics() checkpoint
+function showDebugMetrics(){
+  const inv=aTraffic(fTraffic()).investimento;
+  const m=buildMetrics(fLeads(),fKommo(),inv);
+  const fmt=(v,f=nn)=>kommoState==='error'?'—':f(v);
+  const rows=[
+    ['Leads (planilha)',m.leads,'—'],
+    ['MQL (planilha)',m.mql,pct(m.qualMql*100)],
+    ['MQL A (planilha)',m.mqla,'—'],
+    ['Kommo matches',m._km.length,'—'],
+    ['Respostas (SDR em atendimento)',m.respostas,pct(m.taxaResp*100)],
+    ['SQL ([SDR] SQL = Sim)',m.sql,pct(m.taxaSql*100)],
+    ['Agendamentos (R1 agendada+)',m.agend,pct(m.taxaAgend*100)+' de SQL'],
+    ['R1 Realizada',m.r1,pct(m.taxaR1*100)+' de Agend.'],
+    ['R2 Marcada',m.r2m,'—'],
+    ['R2 Realizada',m.r2r,pct(m.taxaR2*100)+' de R2 Marc.'],
+    ['Vendas (02 Pago + Assinado)',m.vendas,pct(m.taxaConv*100)+' de R2 Real.'],
+    ['Faturamento (lead.price)',brl(m.faturamento),'—'],
+    ['MRR ([CLOSER] MRR)',brl(m.mrr),'—'],
+    ['CAC',brl(m.cac),'—'],
+    ['ROAS',Rn(m.roas,2)+'x','—'],
+    ['Ticket Médio',brl(m.ticket),'—'],
+  ];
+  document.getElementById('debugBody').innerHTML=
+    `<div style="margin-bottom:8px;color:#94a3b8">Período: ${document.getElementById('fFrom').value} → ${document.getElementById('fTo').value} | Investimento: ${brl(inv)}</div>`+
+    `<table style="width:100%;border-collapse:collapse">`+
+    rows.map(([label,val,extra])=>
+      `<tr style="border-bottom:1px solid #e2e8f0">
+        <td style="padding:4px 8px;color:#475569;font-weight:600">${label}</td>
+        <td style="padding:4px 8px;color:#0f172a;font-family:monospace">${val}</td>
+        <td style="padding:4px 8px;color:#94a3b8">${extra}</td>
+      </tr>`
+    ).join('')+`</table>`+
+    `<details style="margin-top:12px"><summary style="cursor:pointer;color:#94a3b8;font-size:11px">Kommo leads matched (${m._km.length})</summary><pre style="margin-top:8px;font-size:10px;overflow:auto;max-height:200px">${JSON.stringify(m._km.map(k=>({id:k.id,name:k.name,phone:k.phone_digits?.slice(-9),status_id:k.status_id,pipeline_id:k.pipeline_id,sql:k.sql,price:k.price,mrr:k.mrrNum})),null,2)}</pre></details>`;
+  const ov=document.getElementById('debugModal');
+  ov.classList.remove('hidden');
+  requestAnimationFrame(()=>ov.classList.add('lm-open'));
+}
+
+function toggleDebugBtn(show){ const b=document.getElementById('debugBtn'); if(b) b.style.display=show?'':'none'; }
 </script>
 </body>
 </html>
