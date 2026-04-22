@@ -585,15 +585,18 @@ function renderP2(){
   const p1=r1m>0?(r1r/r1m)*100:0, p2=r2m>0?(r2r/r2m)*100:0;
   const resp=ld.length, pctResp=rl>0?(resp/rl)*100:0;
 
-  // row(metric, planVal, realVal, planCost, realCost, planPct, realPct)
-  function row(m,pv,rv2,pc,rc,pp,rp,fv=nn,fc=brl){
+  // row(metric, planVal, realVal, planCost, realCost, planPct, realPct, fv, fc, clickFn)
+  function row(m,pv,rv2,pc,rc,pp,rp,fv=nn,fc=brl,clickFn=null){
     const dv=delt(rv2,pv),dcc=delt(rc,pc),dp=delt(rp,pp);
     const planV=pv!=null?fv(pv):'—', realV=fv(rv2);
     const planC=pc!=null?fc(pc):'—', realC=rc!=null?fc(rc):'—';
     const planP=pp!=null?pct(pp):'—', realP=rp!=null?pct(rp):'—';
+    const realCell=clickFn
+      ?`<td class="td-click" onclick="${clickFn}()" data-tip="${rv2} ${rv2===1?'lead':'leads'} — clique para detalhes">${realV}</td>`
+      :`<td>${realV}</td>`;
     return`<tr>
       <td>${m}</td>
-      <td>${planV}</td><td>${realV}</td><td>${pv!=null?db(dv):'—'}</td>
+      <td>${planV}</td>${realCell}<td>${pv!=null?db(dv):'—'}</td>
       <td>${planC}</td><td>${realC}</td><td>${pc!=null?db(dcc):'—'}</td>
       <td>${planP}</td><td>${realP}</td><td>${pp!=null?db(dp):'—'}</td>
     </tr>`;
@@ -612,9 +615,9 @@ function renderP2(){
       ${row('Cliques',plan.cliques,cl,plan.cpc,cpc_r,null,null)}
       ${row('CPM',null,cpm_r,null,null,null,null,brl,brl)}
       ${row('CPC',null,cpc_r,null,null,null,null,brl,brl)}
-      ${row('Leads',plan.leads,rl,plan.cpl,cpl_r,null,null)}
+      ${row('Leads',plan.leads,rl,plan.cpl,cpl_r,null,null,nn,brl,'lmOpenLeads')}
       ${row('CPL',null,cpl_r,null,null,null,null,brl,brl)}
-      ${row('MQL',plan.mql,mql,plan.cmql,cpmql,plan.taxa_mql,pm)}
+      ${row('MQL',plan.mql,mql,plan.cmql,cpmql,plan.taxa_mql,pm,nn,brl,'lmOpenMql')}
       ${row('% Qualificação',null,null,null,null,plan.taxa_mql,pm)}
       ${row('Custo MQL',null,cpmql,plan.cmql,null,null,null,brl,brl)}
       ${row('Respostas',null,resp,null,null,null,pctResp)}
