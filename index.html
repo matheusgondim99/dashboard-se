@@ -819,10 +819,14 @@ function renderDimTable(tid,cid,trafficRows,leadsRows,trafField,statusField,utmF
     const linkCell=showLink
       ?`<td>${r.link?`<a href="${r.link}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;">🔗 Ver</a>`:'—'}</td>`
       :'';
+    const esc=r.name.replace(/"/g,'&quot;');
     return`<tr>
       <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left" title="${r.name}">${r.name}</td>
-      <td>${brl(r.inv)}</td><td>${nn(r.lds)}</td><td>${brl(r.cpl)}</td>
-      <td>${nn(r.mql)}</td><td>${brl(r.cplq)}</td>
+      <td>${brl(r.inv)}</td>
+      <td class="td-click" data-utm="${utmField}" data-name="${esc}" data-tip="${r.lds} ${r.lds===1?'lead':'leads'} — clique para detalhes" onclick="lmOpenDimLeads(this)">${nn(r.lds)}</td>
+      <td>${brl(r.cpl)}</td>
+      <td class="td-click" data-utm="${utmField}" data-name="${esc}" data-tip="${r.mql} ${r.mql===1?'lead':'leads'} — clique para detalhes" onclick="lmOpenDimMql(this)">${nn(r.mql)}</td>
+      <td>${brl(r.cplq)}</td>
       <td><span style="color:${/^(active|ativo|on)$/i.test((r.status||'').trim())?'var(--green)':'var(--red)'}">●</span></td>
       ${linkCell}
     </tr>`;
@@ -1047,6 +1051,16 @@ function lmOpenMql(){
 }
 function lmOpenMqla(){
   openLeadsModal('MQL A', fLeads().filter(r=>(r['Nível Qualificação']||'').trim().toUpperCase()==='A'));
+}
+
+// ── LEADS MODAL HANDLERS (p5 tables) ─────────────────────────────────────────
+function lmOpenDimLeads(el){
+  const rows=fLeads().filter(r=>(r[el.dataset.utm]||'').trim()===el.dataset.name);
+  openLeadsModal('Leads',rows);
+}
+function lmOpenDimMql(el){
+  const all=fLeads().filter(r=>(r[el.dataset.utm]||'').trim()===el.dataset.name);
+  openLeadsModal('MQL',all.filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado'));
 }
 
 // ── LEADS MODAL ──────────────────────────────────────────────────────────────
