@@ -27,6 +27,11 @@ nav a.active{background:var(--sidebar-active);color:#fff}
 nav a .icon{font-size:14px;width:18px;text-align:center;opacity:.8}
 nav a.active .icon{opacity:1}
 .sidebar-footer{margin-top:auto;padding:14px;border-top:1px solid rgba(255,255,255,.08)}
+.sub-nav{overflow:hidden;max-height:0;transition:max-height .25s ease}
+.sub-nav.open{max-height:200px}
+.sub-nav a{padding-left:28px!important;font-size:12px!important}
+.subnav-arrow{margin-left:auto;font-style:normal;transition:transform .2s;display:inline-block}
+nav a.parent.expanded .subnav-arrow{transform:rotate(90deg)}
 .kommo-btn{width:100%;padding:8px 12px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:transparent;color:var(--sidebar-text);font-family:var(--font);font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;justify-content:center;transition:all .2s}
 .kommo-btn:hover{border-color:rgba(255,255,255,.3);color:#fff}
 .kommo-btn.connected{border-color:#22c55e;color:#22c55e}
@@ -83,10 +88,24 @@ table.wt td:first-child{text-align:left;color:var(--text);font-weight:500;positi
 table.wt tr:hover td{background:var(--surface2)}
 table.wt tr:hover td:first-child{background:var(--surface2)}
 .chart-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.p5-charts-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .chart-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .chart-hd h3{font-size:13px;font-weight:600;color:var(--text)}
 .chart-sel{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;color:var(--text);font-family:var(--font);font-size:12px;outline:none;cursor:pointer}
 .chart-c{position:relative;height:200px}
+.var-block{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+.var-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.var-periods{font-size:11px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0}
+.var-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.var-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:3px}
+.var-name{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.var-vals{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.var-curr{font-size:15px;font-weight:700;color:var(--text)}
+.var-chg{font-size:11px;font-weight:700;padding:2px 5px;border-radius:4px;white-space:nowrap}
+.var-chg.up{background:var(--green-light);color:var(--green)}
+.var-chg.dn{background:var(--red-light);color:var(--red)}
+.var-chg.flat{background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.var-prev{font-size:10px;color:var(--text3)}
 .funnel-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .fc{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;max-height:280px;display:flex;flex-direction:column}
 .fc-hd{padding:9px 14px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
@@ -206,23 +225,20 @@ table.lm-tbl td:nth-child(2){color:var(--text);font-weight:500}
       </div>
     </div>
     <div class="sidebar-section">
+      <nav>
+        <a class="active" onclick="showPage('page1',this)"><span class="icon">🏠</span>Visão Geral</a>
+      </nav>
+    </div>
+    <div class="sidebar-section">
       <div class="sidebar-section-label">Funil</div>
       <nav>
-        <a class="active" onclick="showPage('page1',this)"><span class="icon">📊</span>Visão Geral</a>
-        <a onclick="showPage('page2',this)"><span class="icon">📋</span>Totais</a>
-      </nav>
-    </div>
-    <div class="sidebar-section">
-      <div class="sidebar-section-label">Histórico</div>
-      <nav>
-        <a onclick="showPage('page3',this)"><span class="icon">📅</span>Semanas</a>
-        <a onclick="showPage('page4',this)"><span class="icon">🗓️</span>Meses</a>
-      </nav>
-    </div>
-    <div class="sidebar-section">
-      <div class="sidebar-section-label">Tráfego</div>
-      <nav>
-        <a onclick="showPage('page5',this)"><span class="icon">📣</span>Campanhas</a>
+        <a class="parent" onclick="showPage('page6',this);toggleSubNav(this)"><span class="icon">🎯</span>SE<span class="subnav-arrow">›</span></a>
+        <div class="sub-nav">
+          <a onclick="showPage('page2',this)"><span class="icon">📋</span>Totais</a>
+          <a onclick="showPage('page5',this)"><span class="icon">📣</span>Marketing</a>
+          <a onclick="showPage('page3',this)"><span class="icon">📅</span>Semanas</a>
+          <a onclick="showPage('page4',this)"><span class="icon">🗓️</span>Meses</a>
+        </div>
       </nav>
     </div>
     <div class="sidebar-footer">
@@ -271,6 +287,7 @@ table.lm-tbl td:nth-child(2){color:var(--text);font-weight:500}
         <div class="panel"><div class="panel-hd"><h3>Tabela Semanal</h3></div>
           <div class="tbl-wrap" id="p3tbl"><div class="ls"><div class="spin"></div>Carregando...</div></div>
         </div>
+        <div class="mt12" id="p3var"></div>
         <div class="mt12 chart-box">
           <div class="chart-hd"><h3>Evolução Semanal</h3>
             <select class="chart-sel" id="p3m" onchange="renderWeeklyChart()">
@@ -288,6 +305,7 @@ table.lm-tbl td:nth-child(2){color:var(--text);font-weight:500}
         <div class="panel"><div class="panel-hd"><h3>Tabela Mensal</h3></div>
           <div class="tbl-wrap" id="p4tbl"><div class="ls"><div class="spin"></div>Carregando...</div></div>
         </div>
+        <div class="mt12" id="p4var"></div>
         <div class="mt12 chart-box">
           <div class="chart-hd"><h3>Evolução Mensal</h3>
             <select class="chart-sel" id="p4m" onchange="renderMonthlyChart()">
@@ -305,8 +323,14 @@ table.lm-tbl td:nth-child(2){color:var(--text);font-weight:500}
         <div class="kpi-grid c4" id="p5kpis"><div class="ls" style="grid-column:1/-1"><div class="spin"></div></div></div>
         <div class="sec mt12">Financeiro</div>
         <div class="kpi-grid c4" id="p5fin"></div>
+        <div class="sec mt20">Progresso do Mês</div>
+        <div class="p5-charts-grid">
+          <div class="chart-box"><div class="chart-hd"><h3>Investimento</h3></div><div class="chart-c"><canvas id="bChart1"></canvas></div></div>
+          <div class="chart-box"><div class="chart-hd"><h3>Leads</h3></div><div class="chart-c"><canvas id="bChart2"></canvas></div></div>
+          <div class="chart-box"><div class="chart-hd"><h3>MQL</h3></div><div class="chart-c"><canvas id="bChart3"></canvas></div></div>
+        </div>
         <div class="sec mt20">Por Campanha</div>
-        <div class="panel"><div class="panel-hd"><h3>Campanhas</h3><div class="mini-stats" id="campCards"></div></div>
+        <div class="panel"><div class="panel-hd"><h3>Por Campanha</h3><div class="mini-stats" id="campCards"></div></div>
           <div class="tbl-wrap" id="p5camp"></div></div>
         <div class="sec mt20">Por Público</div>
         <div class="panel"><div class="panel-hd"><h3>Públicos</h3><div class="mini-stats" id="adsetCards"></div></div>
@@ -314,6 +338,19 @@ table.lm-tbl td:nth-child(2){color:var(--text);font-weight:500}
         <div class="sec mt20">Por Criativo</div>
         <div class="panel"><div class="panel-hd"><h3>Criativos</h3><div class="mini-stats" id="adCards"></div></div>
           <div class="tbl-wrap" id="p5ad"></div></div>
+      </div>
+
+      <div class="page" id="page6">
+        <div class="sec">Métricas SE</div>
+        <div class="kpi-grid c4" id="seMeta"><div class="ls" style="grid-column:1/-1"><div class="spin"></div></div></div>
+        <div class="sec mt20">Funil Detalhado</div>
+        <div class="panel"><div class="panel-hd"><h3>META vs REALIZADO</h3></div>
+          <div class="tbl-wrap" id="seTbl"><div class="ls"><div class="spin"></div>Carregando...</div></div>
+        </div>
+        <div class="sec mt20">Financeiro</div>
+        <div class="kpi-grid c4" id="seFin"></div>
+        <div class="sec mt20">Leads nas Etapas Críticas</div>
+        <div class="kpi-grid c8" id="seEtapas"></div>
       </div>
     </div>
   </div>
@@ -469,6 +506,39 @@ function getPlan(){
   };
 }
 
+function getFilterRatio(){
+  const{from,to}=gf();
+  if(!from||!to) return 1;
+  const fd=new Date(from+'T00:00:00'), td=new Date(to+'T00:00:00');
+  const filterDays=Math.round((td-fd)/86400000)+1;
+  let totalDays=0;
+  let cur=new Date(fd.getFullYear(),fd.getMonth(),1);
+  const end=new Date(td.getFullYear(),td.getMonth(),1);
+  while(cur<=end){ totalDays+=new Date(cur.getFullYear(),cur.getMonth()+1,0).getDate(); cur=new Date(cur.getFullYear(),cur.getMonth()+1,1); }
+  return totalDays>0?filterDays/totalDays:1;
+}
+
+function burndownData(metric){
+  const{from,to}=gf();
+  if(!from||!to) return{labels:[],actual:[],target:[]};
+  const fd=new Date(from+'T00:00:00'), td=new Date(to+'T00:00:00');
+  const plan=getPlan(), ratio=getFilterRatio();
+  const targetTotal=metric==='investimento'?plan.investimento*ratio:metric==='leads'?plan.leads*ratio:metric==='mql'?plan.mql*ratio:0;
+  const days=[]; let cur=new Date(fd);
+  while(cur<=td){ days.push(cur.toISOString().slice(0,10)); cur=new Date(cur.getTime()+86400000); }
+  const dailyMap={};
+  if(metric==='investimento'){
+    S.traffic.forEach(r=>{const d=pd(r['Day']||r['Data']||'');if(!d||!inRange(r['Day']||r['Data']||'',from,to))return;const k=d.toISOString().slice(0,10);dailyMap[k]=(dailyMap[k]||0)+sf([r],'Amount Spent');});
+  } else {
+    const src=metric==='mql'?S.leads.filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado'):S.leads;
+    src.forEach(r=>{const d=pd(r['Data']||'');if(!d||!inRange(r['Data']||'',from,to))return;const k=d.toISOString().slice(0,10);dailyMap[k]=(dailyMap[k]||0)+1;});
+  }
+  let cum=0; const n=days.length;
+  const labels=[],actual=[],target=[];
+  days.forEach((d,i)=>{cum+=(dailyMap[d]||0);labels.push(d.slice(5));actual.push(cum);target.push(targetTotal>0?targetTotal*((i+1)/n):null);});
+  return{labels,actual,target};
+}
+
 // HELPERS
 const Rn=(v,d=0)=>isNaN(v)||!isFinite(v)?0:Number(v.toFixed(d));
 const brl=v=>v==null?'—':'R$ '+Rn(v,0).toLocaleString('pt-BR');
@@ -609,7 +679,7 @@ function getMRR(arr){
 }
 
 // RENDER ALL
-function renderAll(){ renderP1(); renderP2(); renderP3(); renderP4(); renderP5(); }
+function renderAll(){ renderP1(); renderP2(); renderP3(); renderP4(); renderP5(); renderSE(); }
 
 // PAGE 1
 function renderP1(){
@@ -741,10 +811,17 @@ function renderP2(){
 // PERIOD UTILS
 function wKey(ds){
   const d=pd(ds); if(!d||isNaN(d)) return null;
-  const y=d.getFullYear(), jan1=new Date(y,0,1);
-  const w=Math.ceil(((d-jan1)/86400000+jan1.getDay()+1)/7);
-  // Sort key: YYYY-WW so sorting by key gives chronological order
-  return{key:`${y}-${String(w).padStart(2,'0')}`,label:`S${w}`,sort:`${y}${String(w).padStart(2,'0')}`};
+  const MN=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  // Monday of the ISO week (week starts Monday)
+  const day=d.getDay(); const diff=day===0?-6:1-day;
+  const mon=new Date(d); mon.setDate(d.getDate()+diff);
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  const my=mon.getFullYear(), sy=sun.getFullYear();
+  const crossYear=my!==sy;
+  const fmt=(dt,showY)=>`${dt.getDate()}/${MN[dt.getMonth()]}${showY?`/${String(dt.getFullYear()).slice(2)}`:''}`;
+  const label=crossYear?`${fmt(mon,true)} – ${fmt(sun,true)}`:`${fmt(mon,false)} – ${fmt(sun,false)}`;
+  const sortKey=`${my}${String(mon.getMonth()+1).padStart(2,'0')}${String(mon.getDate()).padStart(2,'0')}`;
+  return{key:sortKey,label,sort:sortKey};
 }
 function mKey(ds){
   const d=pd(ds); if(!d||isNaN(d)) return null;
@@ -760,37 +837,46 @@ function buildPeriod(period){
   S.leads.forEach(r=>{const k=gk(r['Data']||'');if(!k)return;if(!lP[k.key])lP[k.key]={meta:k,rows:[]};lP[k.key].rows.push(r);});
   S.kommo.forEach(l=>{const k=gk(l.entry_date||'');if(!k)return;if(!kP[k.key])kP[k.key]={meta:k,leads:[]};kP[k.key].leads.push(l);});
 
-  // Sort chronologically
   const allKeys=[...new Set([...Object.keys(tP),...Object.keys(lP),...Object.keys(kP)])].sort();
   const labels=allKeys.map(k=>(tP[k]||lP[k]||kP[k]).meta.label);
-  const metrics=['Investimento','Impressões','Cliques','CPM','CPC','Leads','CPL','MQL','% Qualificação','Custo MQL','Respostas','% Respostas','SQL','Custo SQL','R1 Marcada','R1 Realizada','% Comparecimento R1','Custo R1','R2 Marcada','R2 Realizada','% Comparecimento R2','Faturamento','CAC','MRR Adicionado'];
+  const metrics=['Investimento','Impressões','Cliques','CPM','CTR','CPC','Leads','CPL','MQL','% Qualificação','Custo MQL','Respostas','% Respostas','SQL','Custo SQL','Agendamentos','R1 Realizada','% Comparecimento R1','Custo R1','R2 Marcada','R2 Realizada','% Comparecimento R2','Vendas','% Conversão','Faturamento','CAC','MRR Adicionado'];
   const rows={};
   metrics.forEach(m=>rows[m]={});
 
   allKeys.forEach((key,i)=>{
     const lbl=labels[i];
     const tr=(tP[key]||{}).rows||[], lr=(lP[key]||{}).rows||[], km=(kP[key]||{}).leads||[];
-    const ta=aTraffic(tr), la=aLeads(lr);
+    const ta=aTraffic(tr);
     const inv=ta.investimento, imp=ta.impressoes, cl=ta.cliques;
-    const lds=km.length>0?km.length:(ta.leads_traf||lr.length);
-    // MQL from sheet
-    const mql=la.mql, sql=la.sql;
-    const r1m=cStage('R1 Marcada',km), r1r=cStage('R1 Realizada',km);
-    const r2m=cStage('R2 Marcada',km), r2r=cStage('R2 Realizada',km);
-    const vnd=cStage('Venda',km), fat=getMRR(km), cac=vnd>0?inv/vnd:0;
+    const m=buildMetrics(lr, km, inv);
 
-    rows['Investimento'][lbl]=brl(inv); rows['Impressões'][lbl]=nn(imp); rows['Cliques'][lbl]=nn(cl);
-    rows['CPM'][lbl]=brl(imp>0?(inv/imp)*1000:0); rows['CPC'][lbl]=brl(cl>0?inv/cl:0);
-    rows['Leads'][lbl]=nn(lds); rows['CPL'][lbl]=brl(lds>0?inv/lds:0);
-    rows['MQL'][lbl]=nn(mql); rows['% Qualificação'][lbl]=pct(lds>0?(mql/lds)*100:0);
-    rows['Custo MQL'][lbl]=brl(mql>0?inv/mql:0);
-    rows['Respostas'][lbl]=nn(lr.length); rows['% Respostas'][lbl]=pct(lds>0?(lr.length/lds)*100:0);
-    rows['SQL'][lbl]=nn(sql); rows['Custo SQL'][lbl]=brl(sql>0?inv/sql:0);
-    rows['R1 Marcada'][lbl]=nn(r1m); rows['R1 Realizada'][lbl]=nn(r1r);
-    rows['% Comparecimento R1'][lbl]=pct(r1m>0?(r1r/r1m)*100:0); rows['Custo R1'][lbl]=brl(r1r>0?inv/r1r:0);
-    rows['R2 Marcada'][lbl]=nn(r2m); rows['R2 Realizada'][lbl]=nn(r2r);
-    rows['% Comparecimento R2'][lbl]=pct(r2m>0?(r2r/r2m)*100:0);
-    rows['Faturamento'][lbl]=brl(fat); rows['CAC'][lbl]=brl(cac); rows['MRR Adicionado'][lbl]=brl(fat);
+    rows['Investimento'][lbl]=brl(inv);
+    rows['Impressões'][lbl]=nn(imp);
+    rows['Cliques'][lbl]=nn(cl);
+    rows['CPM'][lbl]=brl(imp>0?(inv/imp)*1000:0);
+    rows['CTR'][lbl]=pct(imp>0?(cl/imp)*100:0);
+    rows['CPC'][lbl]=brl(cl>0?inv/cl:0);
+    rows['Leads'][lbl]=nn(m.leads);
+    rows['CPL'][lbl]=brl(m.cpl);
+    rows['MQL'][lbl]=nn(m.mql);
+    rows['% Qualificação'][lbl]=pct(m.qualMql*100);
+    rows['Custo MQL'][lbl]=brl(m.custoMql);
+    rows['Respostas'][lbl]=nn(m.respostas);
+    rows['% Respostas'][lbl]=pct(m.taxaResp*100);
+    rows['SQL'][lbl]=nn(m.sql);
+    rows['Custo SQL'][lbl]=brl(m.custoSql);
+    rows['Agendamentos'][lbl]=nn(m.agend);
+    rows['R1 Realizada'][lbl]=nn(m.r1);
+    rows['% Comparecimento R1'][lbl]=pct(m.taxaR1*100);
+    rows['Custo R1'][lbl]=brl(m.cpr1);
+    rows['R2 Marcada'][lbl]=nn(m.r2m);
+    rows['R2 Realizada'][lbl]=nn(m.r2r);
+    rows['% Comparecimento R2'][lbl]=pct(m.taxaR2*100);
+    rows['Vendas'][lbl]=nn(m.vendas);
+    rows['% Conversão'][lbl]=pct(m.taxaConv*100);
+    rows['Faturamento'][lbl]=brl(m.faturamento);
+    rows['CAC'][lbl]=brl(m.cac);
+    rows['MRR Adicionado'][lbl]=brl(m.mrr);
   });
   return{labels,rows,allKeys,tP,lP,kP};
 }
@@ -808,21 +894,44 @@ function renderWT(id,labels,rows,allKeys,periodType){
   // Map label → period key for clickable cells
   const lblToKey={};
   if(allKeys) labels.forEach((l,i)=>{lblToKey[l]=allKeys[i];});
-  const CLICK_ROWS=new Set(['Leads','MQL']);
+  const CLICK_ROWS={'Leads':'leads','MQL':'mql','SQL':'sql','Agendamentos':'agendamentos','R1 Realizada':'r1','R2 Marcada':'r2m','R2 Realizada':'r2r','Vendas':'vendas'};
   document.getElementById(id).innerHTML=`<table class="wt"><thead><tr><th>Métrica</th>${displayLabels.map(l=>`<th>${l}</th>`).join('')}</tr></thead><tbody>${ms.map(m=>{
-    const isClick=allKeys&&periodType&&CLICK_ROWS.has(m);
+    const metricKey=CLICK_ROWS[m];
+    const isClick=allKeys&&periodType&&!!metricKey;
     return`<tr><td>${m}</td>${displayLabels.map(l=>{
       const v=rows[m][l]||'—';
       if(!isClick) return`<td>${v}</td>`;
       const key=lblToKey[l]||'';
-      const metric=m==='MQL'?'mql':'leads';
-      return`<td class="td-click" data-period-key="${key}" data-period-type="${periodType}" data-metric="${metric}" data-tip="${v} — clique para detalhes" onclick="lmOpenPeriod(this)">${v}</td>`;
+      return`<td class="td-click" data-period-key="${key}" data-period-type="${periodType}" data-metric="${metricKey}" data-tip="${v} — clique para detalhes" onclick="lmOpenPeriod(this)">${v}</td>`;
     }).join('')}</tr>`;
   }).join('')}</tbody></table>`;
 }
 
-function renderP3(){ const{labels,rows,allKeys}=buildPeriod('week');  renderWT('p3tbl',labels,rows,allKeys,'week');  renderWeeklyChart(); }
-function renderP4(){ const{labels,rows,allKeys}=buildPeriod('month'); renderWT('p4tbl',labels,rows,allKeys,'month'); renderMonthlyChart(); }
+function renderVariacoes(containerId, data){
+  const el=document.getElementById(containerId);
+  if(!el) return;
+  const{labels,rows}=data;
+  const parseV=s=>{
+    if(!s||s==='—') return null;
+    return parseFloat(s.replace(/[R$\s%]/g,'').replace(/\./g,'').replace(',','.'));
+  };
+  const active=labels.filter(l=>(parseV(rows['Investimento']?.[l])||0)>0);
+  if(active.length<2){el.innerHTML='';return;}
+  const curr=active[active.length-1], prev=active[active.length-2];
+  const VAR_METRICS=['Investimento','Leads','MQL','SQL','Agendamentos','R1 Realizada','R2 Realizada','Vendas'];
+  const cards=VAR_METRICS.map(m=>{
+    const cv=parseV(rows[m]?.[curr]), pv=parseV(rows[m]?.[prev]);
+    if(cv===null||pv===null) return null;
+    const chg=pv>0?((cv-pv)/pv)*100:(cv>0?100:0);
+    const cls=Math.abs(chg)<1?'flat':chg>0?'up':'dn';
+    const arrow=cls==='flat'?'→':cls==='up'?'↑':'↓';
+    return`<div class="var-card"><div class="var-name">${m}</div><div class="var-vals"><span class="var-curr">${rows[m][curr]||'—'}</span><span class="var-chg ${cls}">${arrow} ${Math.abs(chg).toFixed(1)}%</span></div><div class="var-prev">vs ${rows[m][prev]||'—'}</div></div>`;
+  }).filter(Boolean);
+  el.innerHTML=`<div class="var-block"><div class="var-title">Variação <span class="var-periods">${curr} vs ${prev}</span></div><div class="var-grid">${cards.join('')}</div></div>`;
+}
+
+function renderP3(){ const d=buildPeriod('week');  renderWT('p3tbl',d.labels,d.rows,d.allKeys,'week');  renderVariacoes('p3var',d); renderWeeklyChart(); }
+function renderP4(){ const d=buildPeriod('month'); renderWT('p4tbl',d.labels,d.rows,d.allKeys,'month'); renderVariacoes('p4var',d); renderMonthlyChart(); }
 
 // CHARTS
 function chartData(period,metric){
@@ -850,28 +959,47 @@ function chartData(period,metric){
   return{labels,data};
 }
 
-let wCI=null,mCI=null;
+let wCI=null,mCI=null,bCI=[null,null,null];
 function mkChart(ctx,labels,data){
   return new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:'rgba(37,99,235,.75)',borderColor:'#2563eb',borderWidth:1,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{family:'Inter',size:10}},grid:{color:'#e8ecf2'}},y:{ticks:{color:'#94a3b8',font:{family:'Inter',size:10}},grid:{color:'#e8ecf2'}}}}});
 }
 function renderWeeklyChart(){ if(wCI) wCI.destroy(); const{labels,data}=chartData('week',document.getElementById('p3m').value); wCI=mkChart(document.getElementById('wChart').getContext('2d'),labels,data); }
 function renderMonthlyChart(){ if(mCI) mCI.destroy(); const{labels,data}=chartData('month',document.getElementById('p4m').value); mCI=mkChart(document.getElementById('mChart').getContext('2d'),labels,data); }
+function renderBurndownCharts(){
+  const metrics=['investimento','leads','mql'];
+  const ids=['bChart1','bChart2','bChart3'];
+  bCI.forEach((c,i)=>{if(c){c.destroy();bCI[i]=null;}});
+  metrics.forEach((m,i)=>{
+    const{labels,actual,target}=burndownData(m);
+    const ctx=document.getElementById(ids[i])?.getContext('2d');
+    if(!ctx) return;
+    bCI[i]=new Chart(ctx,{type:'line',data:{labels,datasets:[
+      {label:'Realizado',data:actual,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,.08)',fill:true,tension:.3,pointRadius:0,borderWidth:2},
+      {label:'Meta',data:target,borderColor:'#94a3b8',borderDash:[5,4],fill:false,tension:0,pointRadius:0,borderWidth:1.5}
+    ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#94a3b8',font:{size:9},maxTicksLimit:10},grid:{color:'#e8ecf2'}},y:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#e8ecf2'}}}}});
+  });
+}
 
 // PAGE 5
 function renderP5(){
   const tr=fTraffic(), ld=fLeads();
   const ta=aTraffic(tr), la=aLeads(ld), plan=getPlan();
+  const ratio=getFilterRatio();
   const inv=ta.investimento;
-  // Leads: from Leads Kommo sheet (form responses), not Meta Ads
   const rl=la.total;
   const mql=la.mql;
 
+  // Proportional metas: scale count/sum metrics by filter-days / month-days ratio
+  const SCALE_KEYS=new Set(['investimento','leads','mql','sql','agendamentos','r1','r2','vendas','faturamento','impressoes','cliques']);
+  const planPro={};
+  Object.keys(plan).forEach(k=>{planPro[k]=SCALE_KEYS.has(k)?plan[k]*ratio:plan[k];});
+
   document.getElementById('p5kpis').innerHTML=[
-    {l:'Investimento',v:brl(inv),p:brl(plan.investimento),d:delt(inv,plan.investimento)},
-    {l:'Leads',v:nn(rl),p:nn(plan.leads),d:delt(rl,plan.leads),fn:'lmOpenLeads',tip:rl},
-    {l:'CPL',v:brl(rl>0?inv/rl:0),p:'—',d:null},
-    {l:'MQL',v:nn(mql),p:nn(plan.mql),d:delt(mql,plan.mql),fn:'lmOpenMql',tip:mql},
-    {l:'Custo MQL',v:brl(mql>0?inv/mql:0),p:'—',d:null},
+    {l:'Investimento',v:brl(inv),p:brl(planPro.investimento),d:delt(inv,planPro.investimento)},
+    {l:'Leads',v:nn(rl),p:nn(planPro.leads),d:delt(rl,planPro.leads),fn:'lmOpenLeads',tip:rl},
+    {l:'CPL',v:brl(rl>0?inv/rl:0),p:plan.cpl?brl(plan.cpl):'—',d:null},
+    {l:'MQL',v:nn(mql),p:nn(planPro.mql),d:delt(mql,planPro.mql),fn:'lmOpenMql',tip:mql},
+    {l:'Custo MQL',v:brl(mql>0?inv/mql:0),p:plan.cmql?brl(plan.cmql):'—',d:null},
     {l:'MQL A',v:nn(la.mqla),p:'—',d:null,fn:'lmOpenMqla',tip:la.mqla},
     {l:'Custo MQL A',v:brl(la.mqla>0?inv/la.mqla:0),p:'—',d:null},
   ].map(k=>`<div class="kpi${k.fn?' clickable':''}"${k.fn?` onclick="${k.fn}()" data-tip="${k.tip} ${k.tip===1?'lead':'leads'} — clique para detalhes"`:''}>
@@ -879,17 +1007,103 @@ function renderP5(){
     <div class="km"><span class="kp">Meta: <b>${k.p}</b></span>${db(k.d)}</div>
   </div>`).join('');
 
+  const km=fKommo();
+  const m=buildMetrics(ld,km,inv);
   document.getElementById('p5fin').innerHTML=[
-    {l:'ROAS',v:'—'},{l:'CAC',v:'—'},{l:'Faturamento',v:'—'},{l:'Taxa Conv. R2→Venda',v:'—'}
-  ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div></div>`).join('');
+    {l:'ROAS',v:kfmt(m.roas,v=>`${Rn(v,1)}×`)},
+    {l:'CAC',v:kfmt(m.cac,brl),p:plan.cac?brl(plan.cac):'—'},
+    {l:'Faturamento',v:kfmt(m.faturamento,brl),p:planPro.faturamento?brl(planPro.faturamento):'—'},
+    {l:'Taxa Conv. R2→Venda',v:kfmt(m.taxaConv,v=>pct(v*100))},
+  ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div>${k.p?`<div class="km"><span class="kp">Meta: <b>${k.p}</b></span></div>`:''}</div>`).join('');
 
-  renderDimTable('p5camp','campCards',tr,ld,'Campaign Name','Campaign Status','utm_campaign',false);
-  renderDimTable('p5adset','adsetCards',tr,ld,'Ad Set Name','Público Status','utm_content',false);
-  renderDimTable('p5ad','adCards',tr,ld,'Ad Name','Criativo Status','utm_medium',true);
+  renderBurndownCharts();
+  const kf=fKommo();
+  renderDimTable('p5camp','campCards',tr,ld,kf,'Campaign Name','Campaign Status','utm_campaign',false);
+  renderDimTable('p5adset','adsetCards',tr,ld,kf,'Ad Set Name','Público Status','utm_content',false);
+  renderDimTable('p5ad','adCards',tr,ld,kf,'Ad Name','Criativo Status','utm_medium',true);
 }
 
-function renderDimTable(tid,cid,trafficRows,leadsRows,trafField,statusField,utmField,showLink){
-  // Group traffic by dimension
+// PAGE 6 — SE screen
+function renderSE(){
+  const tr=fTraffic(), ld=fLeads(), km=fKommo();
+  const inv=aTraffic(tr).investimento;
+  const plan=getPlan(), ratio=getFilterRatio();
+  const SCALE_KEYS=new Set(['leads','mql','sql','agendamentos','r1','r2','vendas','faturamento','investimento']);
+  const pp={}; Object.keys(plan).forEach(k=>{pp[k]=SCALE_KEYS.has(k)?plan[k]*ratio:plan[k];});
+  const m=buildMetrics(ld, km, inv);
+  const KK=v=>kommoState==='error'?null:v;
+
+  // Meta/real KPI cards
+  document.getElementById('seMeta').innerHTML=[
+    {l:'Leads',     r:m.leads,           p:pp.leads,          f:nn,  kommo:false},
+    {l:'MQL',       r:m.mql,             p:pp.mql,            f:nn,  kommo:false},
+    {l:'SQL',       r:m.sql,             p:pp.sql,            f:nn,  kommo:false},
+    {l:'Agendamentos',r:KK(m.agend),     p:pp.agendamentos,   f:nn,  kommo:true},
+    {l:'R1 Realizadas',r:KK(m.r1),       p:pp.r1,             f:nn,  kommo:true},
+    {l:'R2 Realizadas',r:KK(m.r2r),      p:pp.r2,             f:nn,  kommo:true},
+    {l:'Vendas',    r:KK(m.vendas),      p:pp.vendas,         f:nn,  kommo:true},
+    {l:'Faturamento',r:KK(m.faturamento),p:pp.faturamento,    f:brl, kommo:true},
+  ].map(k=>{
+    const dv=k.r!==null&&k.p?delt(k.r,k.p):null;
+    return`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.r!==null?k.f(k.r):'—'}</div><div class="km"><span class="kp">Meta: <b>${k.p?k.f(k.p):'—'}</b></span>${dv!==null?db(dv):''}</div></div>`;
+  }).join('');
+
+  // Funnel detail table
+  const fRows=[
+    {m:'Leads',      r:m.leads,           p:pp.leads,          rate:null,                         f:nn},
+    {m:'MQL',        r:m.mql,             p:pp.mql,            rate:pct(m.qualMql*100),           f:nn},
+    {m:'SQL',        r:m.sql,             p:pp.sql,            rate:pct(m.taxaSql*100),           f:nn},
+    {m:'Agendamentos',r:KK(m.agend),      p:pp.agendamentos,   rate:KK(m.taxaAgend)!==null?pct(m.taxaAgend*100):'—', f:nn},
+    {m:'R1 Realizadas',r:KK(m.r1),        p:pp.r1,             rate:KK(m.taxaR1)!==null?pct(m.taxaR1*100):'—',      f:nn},
+    {m:'R2 Marcadas', r:KK(m.r2m),        p:null,              rate:null,                         f:nn},
+    {m:'R2 Realizadas',r:KK(m.r2r),       p:pp.r2,             rate:KK(m.taxaR2)!==null?pct(m.taxaR2*100):'—',      f:nn},
+    {m:'Vendas',     r:KK(m.vendas),      p:pp.vendas,         rate:KK(m.taxaConv)!==null?pct(m.taxaConv*100):'—',  f:nn},
+    {m:'Faturamento',r:KK(m.faturamento), p:pp.faturamento,    rate:null,                         f:brl},
+    {m:'MRR Adicionado',r:KK(m.mrr),      p:null,              rate:null,                         f:brl},
+  ];
+  document.getElementById('seTbl').innerHTML=`<table class="dt"><thead><tr><th>Etapa</th><th>Meta</th><th>Realizado</th><th>Δ</th><th>Taxa</th></tr></thead><tbody>${
+    fRows.map(row=>{
+      const dv=row.r!==null&&row.p?delt(row.r,row.p):null;
+      return`<tr><td>${row.m}</td><td>${row.p?row.f(row.p):'—'}</td><td>${row.r!==null?row.f(row.r):'—'}</td><td>${dv!==null?db(dv):'—'}</td><td>${row.rate||'—'}</td></tr>`;
+    }).join('')
+  }</tbody></table>`;
+
+  // Financeiro
+  document.getElementById('seFin').innerHTML=[
+    {l:'Investimento',v:brl(inv),           p:pp.investimento?brl(pp.investimento):'—',d:pp.investimento?delt(inv,pp.investimento):null},
+    {l:'CAC',         v:kfmt(m.cac,brl),    p:plan.cac?brl(plan.cac):'—',d:null},
+    {l:'MRR Adicionado',v:kfmt(m.mrr,brl),  p:'—',d:null},
+    {l:'Ticket Médio',v:kfmt(m.ticket,brl), p:plan.ticket?brl(plan.ticket):'—',d:null},
+  ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div><div class="km"><span class="kp">Meta: <b>${k.p}</b></span>${k.d!==null?db(k.d):''}</div></div>`).join('');
+
+  // Leads nas etapas críticas
+  const kommoErr=kommoState==='error';
+  document.getElementById('seEtapas').innerHTML=[
+    {l:'Em Contato SDR',n:km.filter(k=>k.pipeline_id===SDR_PIPELINE_ID&&!SDR_RESPONDEU_IDS.has(k.status_id)).length},
+    {l:'Responderam',   n:km.filter(k=>SDR_RESPONDEU_IDS.has(k.status_id)).length},
+    {l:'Agendados',     n:km.filter(k=>CLOSER_AGENDADO_IDS.has(k.status_id)&&!R1_REALIZADA_IDS.has(k.status_id)).length},
+    {l:'R1 Realizadas', n:km.filter(k=>R1_REALIZADA_IDS.has(k.status_id)&&!R2_MARCADA_IDS.has(k.status_id)).length},
+    {l:'R2 Marcadas',   n:km.filter(k=>R2_MARCADA_IDS.has(k.status_id)&&!R2_REALIZADA_IDS.has(k.status_id)).length},
+    {l:'R2 Realizadas', n:km.filter(k=>R2_REALIZADA_IDS.has(k.status_id)&&!VENDAS_IDS.has(k.status_id)).length},
+    {l:'Vendas',        n:km.filter(k=>VENDAS_IDS.has(k.status_id)).length},
+  ].map(e=>`<div class="kpi"><div class="kl">${e.l}</div><div class="kv">${kommoErr?'—':nn(e.n)}</div></div>`).join('');
+}
+
+function dtSort(th){
+  const tbl=th.closest('table'), idx=Array.from(th.parentElement.children).indexOf(th);
+  const asc=th.dataset.dir!=='asc';
+  th.parentElement.querySelectorAll('th').forEach(t=>delete t.dataset.dir);
+  th.dataset.dir=asc?'asc':'desc';
+  const tbody=tbl.querySelector('tbody');
+  [...tbody.querySelectorAll('tr')].sort((a,b)=>{
+    const av=a.cells[idx]?.textContent.trim()||'', bv=b.cells[idx]?.textContent.trim()||'';
+    const an=parseFloat(av.replace(/[R$\s.%×]/g,'').replace(',','.')), bn=parseFloat(bv.replace(/[R$\s.%×]/g,'').replace(',','.'));
+    const c=isNaN(an)||isNaN(bn)?av.localeCompare(bv,'pt-BR'):an-bn;
+    return asc?c:-c;
+  }).forEach(r=>tbody.appendChild(r));
+}
+
+function renderDimTable(tid,cid,trafficRows,leadsRows,kommoLeads,trafField,statusField,utmField,showLink){
   const tGroups={};
   trafficRows.forEach(r=>{
     const k=(r[trafField]||'Desconhecido').trim();
@@ -898,7 +1112,6 @@ function renderDimTable(tid,cid,trafficRows,leadsRows,trafField,statusField,utmF
     tGroups[k].status=r[statusField]||tGroups[k].status;
   });
 
-  // Build link map: utm_medium → first Link Criativo found
   const linkMap={};
   leadsRows.forEach(r=>{
     const med=(r['utm_medium']||'').trim();
@@ -916,29 +1129,31 @@ function renderDimTable(tid,cid,trafficRows,leadsRows,trafField,statusField,utmF
     `<div class="ms red"><div class="msl">Inativos</div><div class="msv">${inactive}</div></div>`+
     `<div class="ms"><div class="msl">Média/dia</div><div class="msv">${brl(totalInv/days)}</div></div>`;
 
-  // Build rows — cross ref leads by exact UTM match
+  const kommoFld=utmField==='utm_campaign'?'utm_campaign':utmField==='utm_content'?'utm_content':null;
+  const kommoOk=kommoLeads.length>0&&kommoState!=='error';
+
   const rows=Object.entries(tGroups).map(([name,g])=>{
-    const ta=aTraffic(g.rows);
-    const inv=ta.investimento;
-    // Match leads whose utm field exactly equals this dimension name
+    const ta=aTraffic(g.rows), inv=ta.investimento;
     const gl=leadsRows.filter(r=>(r[utmField]||'').trim()===name);
-    const la=aLeads(gl);
-    // Leads: count from sheet responses, not Meta Ads
-    const lds=gl.length;
-    const mql=la.mql;
+    const lds=gl.length, mql=aLeads(gl).mql;
     const link=linkMap[name]||'';
-    return{name,inv,lds,cpl:lds>0?inv/lds:0,mql,cplq:mql>0?inv/mql:0,status:g.status,link};
+    const kl=kommoFld&&kommoOk?kommoLeads.filter(k=>(k[kommoFld]||'').trim()===name):[];
+    const r2r=kl.filter(k=>R2_REALIZADA_IDS.has(k.status_id)).length;
+    const vendas=kl.filter(k=>VENDAS_IDS.has(k.status_id)).length;
+    return{name,inv,lds,cpl:lds>0?inv/lds:0,mql,cplq:mql>0?inv/mql:0,r2r,vendas,status:g.status,link};
   }).sort((a,b)=>b.inv-a.inv);
 
-  const linkCol=showLink?'<th>Link</th>':'';
+  const th=s=>`<th onclick="dtSort(this)" style="cursor:pointer;white-space:nowrap">${s}</th>`;
+  const linkCol=showLink?th('Link'):'';
+  const r2cols=kommoFld&&kommoOk?th('R2')+th('Vendas'):'';
   document.getElementById(tid).innerHTML=`<table class="dt"><thead><tr>
-    <th>Nome</th><th>Invest.</th><th>Leads</th><th>CPL</th>
-    <th>MQL</th><th>Custo MQL</th><th>Status</th>${linkCol}
+    ${th('Nome')}${th('Invest.')}${th('Leads')}${th('CPL')}${th('MQL')}${th('Custo MQL')}${r2cols}${th('Status')}${linkCol}
   </tr></thead><tbody>${rows.map(r=>{
-    const linkCell=showLink
-      ?`<td>${r.link?`<a href="${r.link}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;">🔗 Ver</a>`:'—'}</td>`
-      :'';
     const esc=r.name.replace(/"/g,'&quot;');
+    const linkCell=showLink?`<td>${r.link?`<a href="${r.link}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px;">🔗 Ver</a>`:'—'}</td>`:'';
+    const r2cells=kommoFld&&kommoOk
+      ?`<td class="td-click" data-utm-fld="${kommoFld}" data-name="${esc}" data-stage="r2r" onclick="lmOpenDimKommo(this)">${nn(r.r2r)}</td>`+
+        `<td class="td-click" data-utm-fld="${kommoFld}" data-name="${esc}" data-stage="vendas" onclick="lmOpenDimKommo(this)">${nn(r.vendas)}</td>`:'';
     return`<tr>
       <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left" title="${r.name}">${r.name}</td>
       <td>${brl(r.inv)}</td>
@@ -946,6 +1161,7 @@ function renderDimTable(tid,cid,trafficRows,leadsRows,trafField,statusField,utmF
       <td>${brl(r.cpl)}</td>
       <td class="td-click" data-utm="${utmField}" data-name="${esc}" data-tip="${r.mql} ${r.mql===1?'lead':'leads'} — clique para detalhes" onclick="lmOpenDimMql(this)">${nn(r.mql)}</td>
       <td>${brl(r.cplq)}</td>
+      ${r2cells}
       <td><span style="color:${/^(active|ativo|on)$/i.test((r.status||'').trim())?'var(--green)':'var(--red)'}">●</span></td>
       ${linkCell}
     </tr>`;
@@ -1122,13 +1338,19 @@ async function connectKommo(){
 }
 
 // NAV
-const TITLES={page1:'Visão Geral do Funil',page2:'Dados Totais — Planejado vs Realizado',page3:'Dados Semanais',page4:'Dados Mensais',page5:'Tráfego Pago'};
+const TITLES={page1:'Visão Geral do Funil',page2:'Dados Totais — Planejado vs Realizado',page3:'Dados Semanais',page4:'Dados Mensais',page5:'Marketing',page6:'SE — Funil de Vendas'};
 function showPage(id,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  document.querySelectorAll('nav a').forEach(a=>a.classList.remove('active'));
+  document.querySelectorAll('nav a:not(.parent)').forEach(a=>a.classList.remove('active'));
+  document.querySelectorAll('nav a.parent').forEach(a=>a.classList.remove('active'));
   if(el) el.classList.add('active');
   document.getElementById('pageTitle').textContent=TITLES[id]||'';
+}
+function toggleSubNav(el){
+  el.classList.toggle('expanded');
+  const sub=el.nextElementSibling;
+  if(sub&&sub.classList.contains('sub-nav')) sub.classList.toggle('open');
 }
 
 // INIT
@@ -1210,9 +1432,26 @@ function lmOpenPeriod(el){
   const type=el.dataset.periodType;
   const metric=el.dataset.metric;
   const gk=type==='week'?wKey:mKey;
-  const rows=S.leads.filter(r=>{const k=gk(r['Data']||'');return k&&k.key===key;});
-  openLeadsModal(metric==='mql'?'MQL':'Leads',
-    metric==='mql'?rows.filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado'):rows);
+  // Sheet-based metrics
+  if(metric==='leads'||metric==='mql'||metric==='sql'){
+    const rows=S.leads.filter(r=>{const k=gk(r['Data']||'');return k&&k.key===key;});
+    if(metric==='mql') return openLeadsModal('MQL',rows.filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado'));
+    if(metric==='sql') return openLeadsModal('SQL',rows.filter(r=>['A','B'].includes((r['Nível Qualificação']||'').trim().toUpperCase())));
+    return openLeadsModal('Leads',rows);
+  }
+  // Kommo-based metrics — filter by stage ID
+  const kLeads=S.kommo.filter(l=>{const k=gk(l.entry_date||'');return k&&k.key===key;});
+  const filters={
+    'agendamentos':l=>CLOSER_AGENDADO_IDS.has(l.status_id),
+    'r1':l=>R1_REALIZADA_IDS.has(l.status_id),
+    'r2m':l=>R2_MARCADA_IDS.has(l.status_id),
+    'r2r':l=>R2_REALIZADA_IDS.has(l.status_id),
+    'vendas':l=>VENDAS_IDS.has(l.status_id),
+  };
+  const titles={'agendamentos':'Agendamentos','r1':'R1 Realizadas','r2m':'R2 Marcadas','r2r':'R2 Realizadas','vendas':'Vendas'};
+  const filtered=kLeads.filter(filters[metric]||(()=>true));
+  const rows=filtered.map(l=>({'Data':l.entry_date||'','Nome':l.name||'—','Telefone':l.phone_digits||l.phone||'—'}));
+  openLeadsModal(titles[metric]||metric, rows);
 }
 
 // ── LEADS MODAL HANDLERS (p5 tables) ─────────────────────────────────────────
@@ -1223,6 +1462,14 @@ function lmOpenDimLeads(el){
 function lmOpenDimMql(el){
   const all=fLeads().filter(r=>(r[el.dataset.utm]||'').trim()===el.dataset.name);
   openLeadsModal('MQL',all.filter(r=>(r['Qualificação']||'').trim().toLowerCase()==='qualificado'));
+}
+function lmOpenDimKommo(el){
+  const fld=el.dataset.utmFld, name=el.dataset.name, stage=el.dataset.stage;
+  const filters={'r2r':l=>R2_REALIZADA_IDS.has(l.status_id),'vendas':l=>VENDAS_IDS.has(l.status_id)};
+  const titles={'r2r':'R2 Realizadas','vendas':'Vendas'};
+  const kl=fKommo().filter(k=>(k[fld]||'').trim()===name).filter(filters[stage]||(()=>true));
+  const rows=kl.map(l=>({'Data':l.entry_date||'','Nome':l.name||'—','Telefone':l.phone_digits||l.phone||'—'}));
+  openLeadsModal(titles[stage]||stage, rows);
 }
 
 // ── LEADS MODAL ──────────────────────────────────────────────────────────────
