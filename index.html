@@ -337,6 +337,19 @@ table.lm-tbl td:nth-child(2){color:var(--text);font-weight:500}
         <div class="panel"><div class="panel-hd"><h3>Criativos</h3><div class="mini-stats" id="adCards"></div></div>
           <div class="tbl-wrap" id="p5ad"></div></div>
       </div>
+
+      <div class="page" id="page6">
+        <div class="sec">Métricas SE</div>
+        <div class="kpi-grid c4" id="seMeta"><div class="ls" style="grid-column:1/-1"><div class="spin"></div></div></div>
+        <div class="sec mt20">Funil Detalhado</div>
+        <div class="panel"><div class="panel-hd"><h3>META vs REALIZADO</h3></div>
+          <div class="tbl-wrap" id="seTbl"><div class="ls"><div class="spin"></div>Carregando...</div></div>
+        </div>
+        <div class="sec mt20">Financeiro</div>
+        <div class="kpi-grid c4" id="seFin"></div>
+        <div class="sec mt20">Leads nas Etapas Críticas</div>
+        <div class="kpi-grid c8" id="seEtapas"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -664,7 +677,73 @@ function getMRR(arr){
 }
 
 // RENDER ALL
-function renderAll(){ renderP1(); renderP2(); renderP3(); renderP4(); renderP5(); }
+function renderAll(){ renderP1(); renderP2(); renderP3(); renderP4(); renderP5(); renderSE(); }
+
+// PAGE 6 — Tela SE
+function renderSE(){
+  const tr=fTraffic(), ld=fLeads(), km=fKommo();
+  const inv=aTraffic(tr).investimento;
+  const plan=getPlan(), ratio=getFilterRatio();
+  const SCALE_KEYS=new Set(['leads','mql','sql','agendamentos','r1','r2','vendas','faturamento','investimento']);
+  const pp={}; Object.keys(plan).forEach(k=>{pp[k]=SCALE_KEYS.has(k)?plan[k]*ratio:plan[k];});
+  const m=buildMetrics(ld, km, inv);
+  const KK=v=>kommoState==='error'?null:v;
+
+  // Meta/Real KPI cards
+  document.getElementById('seMeta').innerHTML=[
+    {l:'Leads',     r:m.leads,           p:pp.leads,          f:nn},
+    {l:'MQL',       r:m.mql,             p:pp.mql,            f:nn},
+    {l:'SQL',       r:m.sql,             p:pp.sql,            f:nn},
+    {l:'Agendamentos',r:KK(m.agend),     p:pp.agendamentos,   f:nn},
+    {l:'R1 Realizadas',r:KK(m.r1),       p:pp.r1,             f:nn},
+    {l:'R2 Realizadas',r:KK(m.r2r),      p:pp.r2,             f:nn},
+    {l:'Vendas',    r:KK(m.vendas),      p:pp.vendas,         f:nn},
+    {l:'Faturamento',r:KK(m.faturamento),p:pp.faturamento,    f:brl},
+  ].map(k=>{
+    const dv=k.r!==null&&k.p?delt(k.r,k.p):null;
+    return`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.r!==null?k.f(k.r):'—'}</div><div class="km"><span class="kp">Meta: <b>${k.p?k.f(k.p):'—'}</b></span>${dv!==null?db(dv):''}</div></div>`;
+  }).join('');
+
+  // Funnel detail table
+  const fRows=[
+    {m:'Leads',       r:m.leads,          p:pp.leads,          rate:null,                                        f:nn},
+    {m:'MQL',         r:m.mql,            p:pp.mql,            rate:pct(m.qualMql*100),                          f:nn},
+    {m:'SQL',         r:m.sql,            p:pp.sql,            rate:pct(m.taxaSql*100),                          f:nn},
+    {m:'Agendamentos',r:KK(m.agend),      p:pp.agendamentos,   rate:KK(m.taxaAgend)!==null?pct(m.taxaAgend*100):'—', f:nn},
+    {m:'R1 Realizadas',r:KK(m.r1),        p:pp.r1,             rate:KK(m.taxaR1)!==null?pct(m.taxaR1*100):'—',      f:nn},
+    {m:'R2 Marcadas', r:KK(m.r2m),        p:null,              rate:null,                                        f:nn},
+    {m:'R2 Realizadas',r:KK(m.r2r),       p:pp.r2,             rate:KK(m.taxaR2)!==null?pct(m.taxaR2*100):'—',      f:nn},
+    {m:'Vendas',      r:KK(m.vendas),     p:pp.vendas,         rate:KK(m.taxaConv)!==null?pct(m.taxaConv*100):'—',  f:nn},
+    {m:'Faturamento', r:KK(m.faturamento),p:pp.faturamento,    rate:null,                                        f:brl},
+    {m:'MRR Adicionado',r:KK(m.mrr),      p:null,              rate:null,                                        f:brl},
+  ];
+  document.getElementById('seTbl').innerHTML=`<table class="dt"><thead><tr><th>Etapa</th><th>Meta</th><th>Realizado</th><th>Δ</th><th>Taxa</th></tr></thead><tbody>${
+    fRows.map(row=>{
+      const dv=row.r!==null&&row.p?delt(row.r,row.p):null;
+      return`<tr><td>${row.m}</td><td>${row.p?row.f(row.p):'—'}</td><td>${row.r!==null?row.f(row.r):'—'}</td><td>${dv!==null?db(dv):'—'}</td><td>${row.rate||'—'}</td></tr>`;
+    }).join('')
+  }</tbody></table>`;
+
+  // Financeiro
+  document.getElementById('seFin').innerHTML=[
+    {l:'Investimento',  v:brl(inv),            p:pp.investimento?brl(pp.investimento):'—', d:pp.investimento?delt(inv,pp.investimento):null},
+    {l:'CAC',           v:kfmt(m.cac,brl),     p:plan.cac?brl(plan.cac):'—',              d:null},
+    {l:'MRR Adicionado',v:kfmt(m.mrr,brl),     p:'—',                                     d:null},
+    {l:'Ticket Médio',  v:kfmt(m.ticket,brl),  p:plan.ticket?brl(plan.ticket):'—',        d:null},
+  ].map(k=>`<div class="kpi"><div class="kl">${k.l}</div><div class="kv">${k.v}</div><div class="km"><span class="kp">Meta: <b>${k.p}</b></span>${k.d!==null?db(k.d):''}</div></div>`).join('');
+
+  // Leads nas etapas críticas (distribuição atual no funil)
+  const kommoErr=kommoState==='error';
+  document.getElementById('seEtapas').innerHTML=[
+    {l:'Em Contato SDR', n:km.filter(k=>k.pipeline_id===SDR_PIPELINE_ID&&!SDR_RESPONDEU_IDS.has(k.status_id)).length},
+    {l:'Responderam',    n:km.filter(k=>SDR_RESPONDEU_IDS.has(k.status_id)).length},
+    {l:'Agendados',      n:km.filter(k=>CLOSER_AGENDADO_IDS.has(k.status_id)&&!R1_REALIZADA_IDS.has(k.status_id)).length},
+    {l:'R1 Realizadas',  n:km.filter(k=>R1_REALIZADA_IDS.has(k.status_id)&&!R2_MARCADA_IDS.has(k.status_id)).length},
+    {l:'R2 Marcadas',    n:km.filter(k=>R2_MARCADA_IDS.has(k.status_id)&&!R2_REALIZADA_IDS.has(k.status_id)).length},
+    {l:'R2 Realizadas',  n:km.filter(k=>R2_REALIZADA_IDS.has(k.status_id)&&!VENDAS_IDS.has(k.status_id)).length},
+    {l:'Vendas',         n:km.filter(k=>VENDAS_IDS.has(k.status_id)).length},
+  ].map(e=>`<div class="kpi"><div class="kl">${e.l}</div><div class="kv">${kommoErr?'—':nn(e.n)}</div></div>`).join('');
+}
 
 // PAGE 1
 function renderP1(){
