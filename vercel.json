@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/kommo-leads.js": { "maxDuration": 60 },
+    "api/kommo.js": { "maxDuration": 30 },
+    "api/kommo-config.js": { "maxDuration": 10 }
+  },
   "rewrites": [
     { "source": "/api/kommo", "destination": "/api/kommo" },
     { "source": "/(.*)", "destination": "/index.html" }
