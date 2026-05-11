@@ -1597,7 +1597,8 @@ function lmOpenGODay(el){
   });
   const filters={total:l=>true,ab:l=>l.abordagem&&l.abordagem.trim(),resp:_goIsResp,agend:stIsAgend,r1:stIsR1,r2:stIsR2R,vn:stIsVenda};
   const labels={total:'Total',ab:'Abordados',resp:'Respostas',agend:'Agendamentos',r1:'R1 Realizadas',r2:'R2 Realizadas',vn:'Vendas'};
-  openLeadsModal(`${labels[metric]||metric} — ${day}`, dayLeads.filter(filters[metric]||_=>true).map(goLeadRow));
+  const fn=filters[metric]||(()=>true);
+  openLeadsModal(`${labels[metric]||metric} — ${day}`, dayLeads.filter(fn).map(goLeadRow));
 }
 
 function renderLeadsGO(){
