@@ -399,7 +399,10 @@ tr.lm-detail:hover td{background:rgba(59,130,246,.04)!important}
         <a class="parent" onclick="showPage('page8',this)"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span>Eventos Presenciais<span class="subnav-arrow" onclick="event.stopPropagation();toggleSubNav(this.parentElement)">›</span></a>
         <div class="sub-nav"></div>
         <a class="parent" onclick="showPage('page9',this)"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Leads GO<span class="subnav-arrow" onclick="event.stopPropagation();toggleSubNav(this.parentElement)">›</span></a>
-        <div class="sub-nav"></div>
+        <div class="sub-nav">
+          <a onclick="showPage('page9s',this)"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg></span>Semanas</a>
+          <a onclick="showPage('page9m',this)"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>Meses</a>
+        </div>
         <a class="parent" onclick="showPage('page10',this)"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></span>Alunos GO<span class="subnav-arrow" onclick="event.stopPropagation();toggleSubNav(this.parentElement)">›</span></a>
         <div class="sub-nav"></div>
         <a class="parent" onclick="showPage('page11',this)"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg></span>Imersão<span class="subnav-arrow" onclick="event.stopPropagation();toggleSubNav(this.parentElement)">›</span></a>
@@ -638,9 +641,28 @@ tr.lm-detail:hover td{background:rgba(59,130,246,.04)!important}
       </div>
 
       <div class="page" id="page9">
-        <div class="sec">Funil — Leads GO</div>
-        <div class="panel" style="padding:40px;text-align:center;color:var(--text-muted)">
-          <h3>Em desenvolvimento</h3>
+        <div class="sec">Funil de Conversão — Leads GO</div>
+        <div class="panel"><div class="panel-hd"><h3>FUNIL DE CONVERSÃO</h3></div>
+          <div id="go9Tbl"><div class="ls"><div class="spin"></div>Carregando...</div></div>
+        </div>
+        <div class="kpi-grid c6 mt20" id="go9Fin"></div>
+        <div class="sec mt20">Por Código de Abordagem</div>
+        <div class="panel"><div class="panel-hd"><h3>Abordagens</h3></div>
+          <div class="tbl-wrap" id="go9AbordagemTbl"></div>
+        </div>
+      </div>
+
+      <div class="page" id="page9s">
+        <div class="sec">Dados por Semana — Leads GO</div>
+        <div class="panel" style="overflow:visible"><div class="panel-hd" style="border-radius:var(--radius) var(--radius) 0 0"><h3>Semanas</h3></div>
+          <div class="tbl-wrap" id="go9sTbl" style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 160px)"><div class="ls"><div class="spin"></div>Carregando...</div></div>
+        </div>
+      </div>
+
+      <div class="page" id="page9m">
+        <div class="sec">Dados por Mês — Leads GO</div>
+        <div class="panel" style="overflow:visible"><div class="panel-hd" style="border-radius:var(--radius) var(--radius) 0 0"><h3>Meses</h3></div>
+          <div class="tbl-wrap" id="go9mTbl" style="overflow-x:auto;overflow-y:auto;max-height:calc(100vh - 160px)"><div class="ls"><div class="spin"></div>Carregando...</div></div>
         </div>
       </div>
 
@@ -707,7 +729,7 @@ tr.lm-detail:hover td{background:rgba(59,130,246,.04)!important}
 
 <script>
 // STATE
-const S = { traffic:[], leads:[], metas:[], kommo:[], kommoAll:[], criativos:[], leadsEP:[], metasEP:[], okrs:[], okrDash:[] };
+const S = { traffic:[], leads:[], metas:[], kommo:[], kommoAll:[], criativos:[], leadsEP:[], metasEP:[], metasGO:[], okrs:[], okrDash:[] };
 let kommoState = 'pending'; // 'pending' | 'connected' | 'error'
 let _kommoSub = ''; // subdomain guardado em memória ao conectar
 const KOMMO_CACHE_KEY = 'se_kommo_data_v2';
@@ -845,7 +867,8 @@ const SHEETS = {
   leadsEP:   'https://docs.google.com/spreadsheets/d/17sEOlYJHjndyTy9GwvBa9whLnO0lwLPygNgn3Dq42Hc/export?format=csv&gid=1454980115',
   metasEP:   'https://docs.google.com/spreadsheets/d/1xLmUjh262dPzDwVCrQZAeGYrMB5sj1F31rRDjHt_k1g/export?format=csv&gid=78652276',
   okrs:      'https://docs.google.com/spreadsheets/d/198l2t0CPlsFhmaHD5ubh0tPvEsecLDq4LJlVys7X55A/export?format=csv&gid=1425017792',
-  okrDash:   'https://docs.google.com/spreadsheets/d/198l2t0CPlsFhmaHD5ubh0tPvEsecLDq4LJlVys7X55A/export?format=csv&gid=0'
+  okrDash:   'https://docs.google.com/spreadsheets/d/198l2t0CPlsFhmaHD5ubh0tPvEsecLDq4LJlVys7X55A/export?format=csv&gid=0',
+  metasGO:   'https://docs.google.com/spreadsheets/d/1xLmUjh262dPzDwVCrQZAeGYrMB5sj1F31rRDjHt_k1g/export?format=csv&gid=906635975'
 };
 
 async function loadCSV(url){ return new Promise((res,rej)=>Papa.parse(url,{download:true,header:true,skipEmptyLines:true,complete:r=>res(r.data),error:e=>rej(e)})); }
@@ -857,8 +880,8 @@ async function loadAllData(){
   if(_kommoRefreshInterval){ clearInterval(_kommoRefreshInterval); _kommoRefreshInterval=null; }
   kommoState='pending';
   try {
-    const [t,l,m,c,ep,mep,okr,okrD] = await Promise.all([loadCSV(SHEETS.traffic),loadCSV(SHEETS.leads),loadCSV(SHEETS.metas),loadCSV(SHEETS.criativos),loadCSVRaw(SHEETS.leadsEP),loadCSVRaw(SHEETS.metasEP),loadCSVRaw(SHEETS.okrs),loadCSVRaw(SHEETS.okrDash)]);
-    S.traffic=t; S.leads=l; S.metas=m; S.leadsEP=ep; S.metasEP=mep; S.okrs=okr||[]; S.okrDash=okrD||[];
+    const [t,l,m,c,ep,mep,okr,okrD,mgo] = await Promise.all([loadCSV(SHEETS.traffic),loadCSV(SHEETS.leads),loadCSV(SHEETS.metas),loadCSV(SHEETS.criativos),loadCSVRaw(SHEETS.leadsEP),loadCSVRaw(SHEETS.metasEP),loadCSVRaw(SHEETS.okrs),loadCSVRaw(SHEETS.okrDash),loadCSVRaw(SHEETS.metasGO)]);
+    S.traffic=t; S.leads=l; S.metas=m; S.leadsEP=ep; S.metasEP=mep; S.metasGO=mgo||[]; S.okrs=okr||[]; S.okrDash=okrD||[];
     S.criativos=c.map(r=>({
       nome:(r['Nome do Anúncio']||'').trim(),
       link:(r['Link']||'').trim(),
@@ -1405,7 +1428,7 @@ function getMRR(arr){
 }
 
 // RENDER ALL
-function renderAll(){ renderP1(); renderP3(); renderP4(); renderP5(); renderP7(); renderSE(); renderEscrita(); renderEventos(); renderLeadsGO(); renderAlunosGO(); renderImersao(); renderComercial(); renderOKRs(); }
+function renderAll(){ renderP1(); renderP3(); renderP4(); renderP5(); renderP7(); renderSE(); renderEscrita(); renderEventos(); renderLeadsGO(); renderLeadsGOWeek(); renderLeadsGOMonth(); renderAlunosGO(); renderImersao(); renderComercial(); renderOKRs(); }
 
 function renderEventos(){
   const ld=fLeadsEP(), km=fKommoEP();
@@ -1517,7 +1540,195 @@ function renderEventos(){
       return`<tr><td style="text-align:left;font-weight:500;padding-left:16px">${row.label}</td><td>${row.r}</td></tr>`;
     }).join('')}</tbody></table></div>`;
 }
-function renderLeadsGO(){}
+function fKommoGO(){
+  return (S.kommoAll.length?S.kommoAll:S.kommo).filter(k=>k.goTagged);
+}
+
+function _goMetrics(leads){
+  const KK=v=>kommoState==='error'?null:v;
+  const total=leads.length;
+  const nAb=leads.filter(k=>k.abordagem&&k.abordagem.trim()).length;
+  const nResp=leads.filter(k=>SDR_RESPONDEU_IDS.has(k.status_id)||k.pipeline_id===CLOSER_PIPELINE_ID).length;
+  const nAgend=leads.filter(stIsAgend).length;
+  const nR1=leads.filter(stIsR1).length;
+  const nR2=leads.filter(stIsR2R).length;
+  const nVendas=leads.filter(stIsVenda).length;
+  return{
+    total,
+    nAb:KK(nAb), nResp:KK(nResp), nAgend:KK(nAgend),
+    nR1:KK(nR1), nR2:KK(nR2), nVendas:KK(nVendas),
+    taxaAb:total>0?nAb/total:0,
+    taxaResp:nAb>0?nResp/nAb:0,
+    taxaAgend:nResp>0?nAgend/nResp:0,
+    taxaR1:nAgend>0?nR1/nAgend:0,
+    taxaR2:nR1>0?nR2/nR1:0,
+    taxaConv:nR2>0?nVendas/nR2:0,
+  };
+}
+
+function renderLeadsGO(){
+  const pool=fKommoGO();
+  const{from,to}=gf();
+  const leads=pool.filter(k=>{
+    if(!k.entry_ts) return true;
+    const d=new Date(k.entry_ts*1000).toISOString().slice(0,10);
+    if(from&&d<from)return false;
+    if(to&&d>to)return false;
+    return true;
+  });
+
+  const m=_goMetrics(leads);
+  const KK=v=>kommoState==='error'?null:v;
+
+  const BAR_WIDTHS=[100,88,76,64,55,47,40];
+  const sfRows=[
+    {name:'Total Leads GO', disp:nn(m.total),                                 raw:m.total,    rateL:null,           rate:null},
+    {name:'Abordados',       disp:KK(m.nAb)!==null?nn(m.nAb):'—',             raw:KK(m.nAb),  rateL:'% Abordados',  rate:KK(m.nAb)!==null?m.taxaAb:null},
+    {name:'Respostas',       disp:KK(m.nResp)!==null?nn(m.nResp):'—',         raw:KK(m.nResp),rateL:'Ab → Resp.',   rate:KK(m.nResp)!==null?m.taxaResp:null},
+    {name:'Agendamentos',    disp:KK(m.nAgend)!==null?nn(m.nAgend):'—',       raw:KK(m.nAgend),rateL:'Resp → Agend.',rate:KK(m.nAgend)!==null?m.taxaAgend:null},
+    {name:'R1 Realizadas',   disp:KK(m.nR1)!==null?nn(m.nR1):'—',             raw:KK(m.nR1),  rateL:'Agend. → R1', rate:KK(m.nR1)!==null?m.taxaR1:null},
+    {name:'R2 Realizadas',   disp:KK(m.nR2)!==null?nn(m.nR2):'—',             raw:KK(m.nR2),  rateL:'R1 → R2',     rate:KK(m.nR2)!==null?m.taxaR2:null},
+    {name:'Vendas',          disp:KK(m.nVendas)!==null?nn(m.nVendas):'—',     raw:KK(m.nVendas),rateL:'R2 → Venda', rate:KK(m.nVendas)!==null?m.taxaConv:null},
+  ];
+
+  const tbl=document.getElementById('go9Tbl');
+  if(tbl) tbl.innerHTML=`<div class="sfunnel">
+    <div class="sfunnel-hdr"><span>Etapa</span><span style="text-align:center">Realizado</span><span style="text-align:center">Conversão</span></div>
+    ${sfRows.map((row,i)=>{
+      const isNull=row.raw===null;
+      const rStr=row.rate!==null&&row.rate!==undefined?pct(row.rate*100):null;
+      const w=BAR_WIDTHS[i]??40;
+      return`<div class="sfunnel-row">
+        <div class="sf-lbl"><span class="sf-name">${row.name}</span></div>
+        <div class="sf-bar-col">
+          <div class="sf-bar${isNull?' sf-zero':''}" style="--bw:${w}%"><span class="sf-bar-lbl">${isNull?'Kommo indisponível':row.disp}</span></div>
+        </div>
+        <div class="sf-rate${!rStr||isNull?' na':''}">
+          ${row.rateL?`<span class="sf-rate-lbl">${row.rateL}</span>`:''}
+          <span class="sf-rate-val">${isNull||!rStr?'—':rStr}</span>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  const fin=document.getElementById('go9Fin');
+  if(fin) fin.innerHTML=[
+    {l:'Total',          v:nn(m.total)},
+    {l:'Abordados',      v:KK(m.nAb)!==null?nn(m.nAb):'—'},
+    {l:'% Abordados',    v:KK(m.nAb)!==null&&m.total>0?pct(m.taxaAb*100):'—'},
+    {l:'Respostas',      v:KK(m.nResp)!==null?nn(m.nResp):'—'},
+    {l:'Agendamentos',   v:KK(m.nAgend)!==null?nn(m.nAgend):'—'},
+    {l:'Vendas',         v:KK(m.nVendas)!==null?nn(m.nVendas):'—'},
+  ].map(k=>`<div class="kpi"><div class="kpi-label">${k.l}</div><div class="kpi-value">${k.v}</div></div>`).join('');
+
+  // Tabela por código de abordagem
+  const abtbl=document.getElementById('go9AbordagemTbl');
+  if(!abtbl) return;
+  const codes={};
+  leads.forEach(k=>{
+    const code=(k.abordagem||'').trim()||'(sem código)';
+    if(!codes[code])codes[code]=[];
+    codes[code].push(k);
+  });
+  const abRows=Object.entries(codes)
+    .sort((a,b)=>b[1].length-a[1].length)
+    .map(([code,ls])=>{
+      const tot=ls.length;
+      const resp=KK(ls.filter(k=>SDR_RESPONDEU_IDS.has(k.status_id)||k.pipeline_id===CLOSER_PIPELINE_ID).length);
+      const ag=KK(ls.filter(stIsAgend).length);
+      const r1n=KK(ls.filter(stIsR1).length);
+      const r2n=KK(ls.filter(stIsR2R).length);
+      const vn=KK(ls.filter(stIsVenda).length);
+      return{code,tot,resp,ag,r1n,r2n,vn,
+        taxaResp:resp!==null&&tot>0?resp/tot:null,
+        taxaAgend:resp!==null&&ag!==null&&resp>0?ag/resp:null,
+        taxaConv:r2n!==null&&vn!==null&&r2n>0?vn/r2n:null};
+    });
+  abtbl.innerHTML=`<table class="dt">
+    <thead><tr>
+      <th style="text-align:left">Código de Abordagem</th>
+      <th>Total</th><th>Resp.</th><th>Agend.</th><th>R1</th><th>R2</th><th>Vendas</th>
+      <th>% Resp</th><th>% Agend</th><th>% Conv</th>
+    </tr></thead>
+    <tbody>${abRows.map(r=>`<tr>
+      <td style="text-align:left;font-weight:600">${r.code}</td>
+      <td>${nn(r.tot)}</td>
+      <td>${r.resp!==null?nn(r.resp):'—'}</td>
+      <td>${r.ag!==null?nn(r.ag):'—'}</td>
+      <td>${r.r1n!==null?nn(r.r1n):'—'}</td>
+      <td>${r.r2n!==null?nn(r.r2n):'—'}</td>
+      <td>${r.vn!==null?nn(r.vn):'—'}</td>
+      <td>${r.taxaResp!==null?pct(r.taxaResp*100):'—'}</td>
+      <td>${r.taxaAgend!==null?pct(r.taxaAgend*100):'—'}</td>
+      <td>${r.taxaConv!==null?pct(r.taxaConv*100):'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function _goISOWeek(d){
+  const tmp=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  const day=tmp.getUTCDay()||7;
+  tmp.setUTCDate(tmp.getUTCDate()+4-day);
+  const year=tmp.getUTCFullYear();
+  const w=Math.ceil(((tmp-new Date(Date.UTC(year,0,1)))/86400000+1)/7);
+  return`${year}-W${String(w).padStart(2,'0')}`;
+}
+
+function _renderGOPeriod(tblId,periodType){
+  const tgt=document.getElementById(tblId);
+  if(!tgt)return;
+  const pool=fKommoGO();
+  if(!pool.length){
+    tgt.innerHTML='<div class="ls" style="padding:40px;color:var(--text3)">Conecte o Kommo para ver os dados.</div>';
+    return;
+  }
+  const map={};
+  pool.forEach(k=>{
+    if(!k.entry_ts)return;
+    const d=new Date(k.entry_ts*1000);
+    const key=periodType==='week'?_goISOWeek(d):`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if(!map[key])map[key]=[];
+    map[key].push(k);
+  });
+  const keys=Object.keys(map).sort();
+  const KK=v=>kommoState==='error'?null:v;
+  const rows=keys.map(key=>{
+    const ls=map[key];
+    return{key,
+      tot:ls.length,
+      ab:ls.filter(k=>k.abordagem&&k.abordagem.trim()).length,
+      resp:KK(ls.filter(k=>SDR_RESPONDEU_IDS.has(k.status_id)||k.pipeline_id===CLOSER_PIPELINE_ID).length),
+      agend:KK(ls.filter(stIsAgend).length),
+      r1:KK(ls.filter(stIsR1).length),
+      r2:KK(ls.filter(stIsR2R).length),
+      vendas:KK(ls.filter(stIsVenda).length),
+    };
+  });
+  const label=periodType==='week'?'Semana':'Mês';
+  tgt.innerHTML=`<table class="dt">
+    <thead><tr>
+      <th style="text-align:left">${label}</th>
+      <th>Total</th><th>Abordados</th><th>Respostas</th><th>Agend.</th><th>R1</th><th>R2</th><th>Vendas</th>
+      <th>% Ab</th><th>% Agend</th>
+    </tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td style="text-align:left;font-weight:500">${r.key}</td>
+      <td>${nn(r.tot)}</td>
+      <td>${nn(r.ab)}</td>
+      <td>${r.resp!==null?nn(r.resp):'—'}</td>
+      <td>${r.agend!==null?nn(r.agend):'—'}</td>
+      <td>${r.r1!==null?nn(r.r1):'—'}</td>
+      <td>${r.r2!==null?nn(r.r2):'—'}</td>
+      <td>${r.vendas!==null?nn(r.vendas):'—'}</td>
+      <td>${r.tot>0?pct(r.ab/r.tot*100):'—'}</td>
+      <td>${r.resp!==null&&r.resp>0?pct(r.agend/r.resp*100):'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function renderLeadsGOWeek(){ _renderGOPeriod('go9sTbl','week'); }
+function renderLeadsGOMonth(){ _renderGOPeriod('go9mTbl','month'); }
+
 function renderAlunosGO(){}
 function renderImersao(){}
 
@@ -4170,6 +4381,7 @@ async function connectKommo(){
         seTagged:(lead._embedded?.tags||[]).some(t=>(t.name||'').toLowerCase().includes('f - se')),
         palestraTagged:(lead._embedded?.tags||[]).some(t=>(t.name||'').toLowerCase().includes('f - palestra')),
         clubTagged:(lead._embedded?.tags||[]).some(t=>(t.name||'').toLowerCase().includes('f - club')),
+        goTagged:(lead._embedded?.tags||[]).some(t=>(t.name||'').toLowerCase().includes('f - leads go')),
         closer:gExact(lf,'closer')||'',
         sdr:gExact(lf,'sdr')||'',
         motivo_perda:g(lf,'motivo de perda')||g(lf,'motivo perda')||'',
@@ -4200,7 +4412,7 @@ async function connectKommo(){
 }
 
 // NAV
-const TITLES={page1:'Visão Geral do Funil',page3:'Dados Semanais',page4:'Dados Mensais',page5:'Tráfego',page6:'SE — Funil de Vendas',page7:'SE — Comunicação',page8:'Eventos Presenciais — Funil de Vendas',page9:'Leads GO — Funil',page10:'Alunos GO — Funil',page11:'Imersão — Funil',page12:'Comercial',page13:'OKRs',page14:'SE — Escrita de Criativos'};
+const TITLES={page1:'Visão Geral do Funil',page3:'Dados Semanais',page4:'Dados Mensais',page5:'Tráfego',page6:'SE — Funil de Vendas',page7:'SE — Comunicação',page8:'Eventos Presenciais — Funil de Vendas',page9:'Leads GO — Funil',page9s:'Leads GO — Semanas',page9m:'Leads GO — Meses',page10:'Alunos GO — Funil',page11:'Imersão — Funil',page12:'Comercial',page13:'OKRs',page14:'SE — Escrita de Criativos'};
 function toggleMobileMenu(){
   document.querySelector('.sidebar').classList.toggle('mob-open');
   document.getElementById('mobOverlay').classList.toggle('visible');

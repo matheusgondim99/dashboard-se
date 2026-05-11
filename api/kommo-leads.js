@@ -74,9 +74,13 @@ export default async function handler(req, res) {
       if (result.status !== 'fulfilled') continue;
       const items = result.value?._embedded?.leads || [];
       if (!items.length) break;
-      items.filter(l =>
-        (l._embedded?.tags || []).some(t => (t.name || '').toLowerCase().includes('f - se'))
-      ).forEach(l => { if (!seenIds.has(l.id)) { seenIds.add(l.id); all.push(l); } });
+      items.filter(l => {
+        const tags = l._embedded?.tags || [];
+        return tags.some(t => {
+          const tn = (t.name || '').toLowerCase();
+          return tn.includes('f - se') || tn.includes('f - leads go');
+        });
+      }).forEach(l => { if (!seenIds.has(l.id)) { seenIds.add(l.id); all.push(l); } });
     }
 
     // Adiciona leads do Closer pipeline (sem filtro de tag — já foram agendados)
