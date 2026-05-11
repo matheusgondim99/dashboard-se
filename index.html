@@ -1566,6 +1566,21 @@ function _goMetrics(leads){
   };
 }
 
+let _goContext=null;
+
+function goLeadRow(l){
+  return{Data:l.entry_date||'',Nome:l.name||'—',Telefone:l.phone_digits||l.phone||'—',Criativo:(l.abordagem||'').trim(),KommoId:l.id||''};
+}
+
+function lmOpenGOTotal(){ if(_goContext)openLeadsModal('Total Leads GO',_goContext.map(goLeadRow)); }
+function lmOpenGOAbordados(){ if(_goContext)openLeadsModal('Abordados GO',_goContext.filter(k=>k.abordagem&&k.abordagem.trim()).map(goLeadRow)); }
+function lmOpenGORespostas(){ if(_goContext)openLeadsModal('Respostas GO',_goContext.filter(k=>SDR_RESPONDEU_IDS.has(k.status_id)||k.pipeline_id===CLOSER_PIPELINE_ID).map(goLeadRow)); }
+function lmOpenGOAgend(){ if(_goContext)openLeadsModal('Agendamentos GO',_goContext.filter(stIsAgend).map(goLeadRow)); }
+function lmOpenGOR1(){ if(_goContext)openLeadsModal('R1 Realizadas GO',_goContext.filter(stIsR1).map(goLeadRow)); }
+function lmOpenGOR2(){ if(_goContext)openLeadsModal('R2 Realizadas GO',_goContext.filter(stIsR2R).map(goLeadRow)); }
+function lmOpenGOVendas(){ if(_goContext)openLeadsModal('Vendas GO',_goContext.filter(stIsVenda).map(goLeadRow)); }
+function lmOpenGOCode(code){ if(_goContext)openLeadsModal(`Abordagem: ${code}`,_goContext.filter(k=>((k.abordagem||'').trim()||'(sem código)')===code).map(goLeadRow)); }
+
 function renderLeadsGO(){
   const pool=fKommoGO();
   const{from,to}=gf();
@@ -1576,19 +1591,20 @@ function renderLeadsGO(){
     if(to&&d>to)return false;
     return true;
   });
+  _goContext=leads;
 
   const m=_goMetrics(leads);
   const KK=v=>kommoState==='error'?null:v;
 
   const BAR_WIDTHS=[100,88,76,64,55,47,40];
   const sfRows=[
-    {name:'Total Leads GO', disp:nn(m.total),                                 raw:m.total,    rateL:null,           rate:null},
-    {name:'Abordados',       disp:KK(m.nAb)!==null?nn(m.nAb):'—',             raw:KK(m.nAb),  rateL:'% Abordados',  rate:KK(m.nAb)!==null?m.taxaAb:null},
-    {name:'Respostas',       disp:KK(m.nResp)!==null?nn(m.nResp):'—',         raw:KK(m.nResp),rateL:'Ab → Resp.',   rate:KK(m.nResp)!==null?m.taxaResp:null},
-    {name:'Agendamentos',    disp:KK(m.nAgend)!==null?nn(m.nAgend):'—',       raw:KK(m.nAgend),rateL:'Resp → Agend.',rate:KK(m.nAgend)!==null?m.taxaAgend:null},
-    {name:'R1 Realizadas',   disp:KK(m.nR1)!==null?nn(m.nR1):'—',             raw:KK(m.nR1),  rateL:'Agend. → R1', rate:KK(m.nR1)!==null?m.taxaR1:null},
-    {name:'R2 Realizadas',   disp:KK(m.nR2)!==null?nn(m.nR2):'—',             raw:KK(m.nR2),  rateL:'R1 → R2',     rate:KK(m.nR2)!==null?m.taxaR2:null},
-    {name:'Vendas',          disp:KK(m.nVendas)!==null?nn(m.nVendas):'—',     raw:KK(m.nVendas),rateL:'R2 → Venda', rate:KK(m.nVendas)!==null?m.taxaConv:null},
+    {name:'Total Leads GO', disp:nn(m.total),                             raw:m.total,     rateL:null,            rate:null,                          click:'lmOpenGOTotal()'},
+    {name:'Abordados',      disp:KK(m.nAb)!==null?nn(m.nAb):'—',         raw:KK(m.nAb),   rateL:'% Abordados',   rate:KK(m.nAb)!==null?m.taxaAb:null, click:KK(m.nAb)!==null?'lmOpenGOAbordados()':null},
+    {name:'Respostas',      disp:KK(m.nResp)!==null?nn(m.nResp):'—',     raw:KK(m.nResp), rateL:'Ab → Resp.',    rate:KK(m.nResp)!==null?m.taxaResp:null, click:KK(m.nResp)!==null?'lmOpenGORespostas()':null},
+    {name:'Agendamentos',   disp:KK(m.nAgend)!==null?nn(m.nAgend):'—',   raw:KK(m.nAgend),rateL:'Resp → Agend.', rate:KK(m.nAgend)!==null?m.taxaAgend:null, click:KK(m.nAgend)!==null?'lmOpenGOAgend()':null},
+    {name:'R1 Realizadas',  disp:KK(m.nR1)!==null?nn(m.nR1):'—',         raw:KK(m.nR1),   rateL:'Agend. → R1',  rate:KK(m.nR1)!==null?m.taxaR1:null, click:KK(m.nR1)!==null?'lmOpenGOR1()':null},
+    {name:'R2 Realizadas',  disp:KK(m.nR2)!==null?nn(m.nR2):'—',         raw:KK(m.nR2),   rateL:'R1 → R2',      rate:KK(m.nR2)!==null?m.taxaR2:null, click:KK(m.nR2)!==null?'lmOpenGOR2()':null},
+    {name:'Vendas',         disp:KK(m.nVendas)!==null?nn(m.nVendas):'—', raw:KK(m.nVendas),rateL:'R2 → Venda',  rate:KK(m.nVendas)!==null?m.taxaConv:null, click:KK(m.nVendas)!==null?'lmOpenGOVendas()':null},
   ];
 
   const tbl=document.getElementById('go9Tbl');
@@ -1598,8 +1614,9 @@ function renderLeadsGO(){
       const isNull=row.raw===null;
       const rStr=row.rate!==null&&row.rate!==undefined?pct(row.rate*100):null;
       const w=BAR_WIDTHS[i]??40;
-      return`<div class="sfunnel-row">
-        <div class="sf-lbl"><span class="sf-name">${row.name}</span></div>
+      const click=row.click?`onclick="${row.click}"`:'';
+      return`<div class="sfunnel-row${row.click?' sf-clickable':''}" ${click}>
+        <div class="sf-lbl"><span class="sf-name">${row.name}${row.click?'<i class="sf-ci">↗</i>':''}</span></div>
         <div class="sf-bar-col">
           <div class="sf-bar${isNull?' sf-zero':''}" style="--bw:${w}%"><span class="sf-bar-lbl">${isNull?'Kommo indisponível':row.disp}</span></div>
         </div>
@@ -1650,8 +1667,8 @@ function renderLeadsGO(){
       <th>Total</th><th>Resp.</th><th>Agend.</th><th>R1</th><th>R2</th><th>Vendas</th>
       <th>% Resp</th><th>% Agend</th><th>% Conv</th>
     </tr></thead>
-    <tbody>${abRows.map(r=>`<tr>
-      <td style="text-align:left;font-weight:600">${r.code}</td>
+    <tbody>${abRows.map(r=>`<tr class="sf-clickable" onclick="lmOpenGOCode(${JSON.stringify(r.code)})">
+      <td style="text-align:left;font-weight:600">${r.code} <i class="sf-ci">↗</i></td>
       <td>${nn(r.tot)}</td>
       <td>${r.resp!==null?nn(r.resp):'—'}</td>
       <td>${r.ag!==null?nn(r.ag):'—'}</td>
