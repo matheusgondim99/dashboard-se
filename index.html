@@ -1646,9 +1646,9 @@ function renderLeadsGO(){
   const pool=fKommoGO();
   const{from,to,type}=gf();
   const isVendas=type==='status';
-  // Sempre filtra por entry_ts — stage_ts (updated_at) muda a qualquer edição no Kommo
+  // Filtra por abordagem_ts (data exata do preenchimento do campo no Kommo) com fallback para entry_ts
   const leads=pool.filter(k=>{
-    const ts=k.entry_ts||0;
+    const ts=k.abordagem_ts||k.entry_ts||0;
     if(!ts) return true;
     const d=new Date(ts*1000).toISOString().slice(0,10);
     if(from&&d<from)return false;
@@ -1751,14 +1751,14 @@ function renderLeadsGO(){
   if(!daytbl) return;
   const dayMap={};
   pool.filter(k=>{
-    const ts=k.entry_ts||0;
+    const ts=k.abordagem_ts||k.entry_ts||0;
     if(!ts) return false;
     const d=new Date(ts*1000).toISOString().slice(0,10);
     if(from&&d<from)return false;
     if(to&&d>to)return false;
     return true;
   }).forEach(k=>{
-    const ts=k.entry_ts||0;
+    const ts=k.abordagem_ts||k.entry_ts||0;
     if(!ts) return;
     const d=new Date(ts*1000).toISOString().slice(0,10);
     if(!dayMap[d])dayMap[d]=[];
@@ -1823,8 +1823,9 @@ function _renderGOPeriod(tblId,periodType){
   }
   const map={};
   pool.forEach(k=>{
-    if(!k.entry_ts)return;
-    const d=new Date(k.entry_ts*1000);
+    const periodTs=k.abordagem_ts||k.entry_ts||0;
+    if(!periodTs)return;
+    const d=new Date(periodTs*1000);
     const key=periodType==='week'?_goISOWeek(d):`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
     if(!map[key])map[key]=[];
     map[key].push(k);
@@ -4421,6 +4422,7 @@ async function connectKommo(){
     const cMap=payload.contacts||{};
     const stagesMap=payload.stagesMap||{};
     const eventsMap=payload.events||{}; // leadId → [{status_id, ts}]
+    const abordagemMap=payload.abordagemMap||{}; // leadId → ts do primeiro preenchimento do campo abordagem
 
     S.kommo=all.map(lead=>{
       const cr=lead._embedded?.contacts?.[0]||{}, cd=cMap[cr.id]||{};
@@ -4507,6 +4509,7 @@ async function connectKommo(){
         stage_date:lead.updated_at?new Date(lead.updated_at*1000).toLocaleDateString('pt-BR'):'',
         entry_ts:lead.created_at||0,
         stage_ts:lead.updated_at||0,
+        abordagem_ts:abordagemMap[lead.id]||null,
         data_r1_ts,
         data_r2_ts,
         data_r1:data_r1_ts?new Date(data_r1_ts*1000).toLocaleDateString('pt-BR'):'',

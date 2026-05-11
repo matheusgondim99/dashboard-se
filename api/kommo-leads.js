@@ -144,7 +144,40 @@ export default async function handler(req, res) {
     // Ordena cada lista por timestamp crescente
     Object.values(eventMap).forEach(arr => arr.sort((a, b) => a.ts - b.ts));
 
-    return res.status(200).json({ leads: all, contacts, stagesMap, events: eventMap });
+    // Busca eventos lead_changed para detectar quando o campo Abordagem foi preenchido
+    // Lote separado para não consumir a cota de 250 dos eventos de stage
+    const abordagemMap = {}; // leadId → timestamp da primeira vez que abordagem foi preenchida
+    const abEventBatches = [];
+    for (let i = 0; i < allIds.length; i += 50) {
+      const batch = allIds.slice(i, i + 50);
+      const qs = batch.map(id => `filter[entity_id][]=${id}`).join('&')
+        + '&filter[type][]=lead_changed&limit=250';
+      const url = `https://${subdomain}.kommo.com/api/v4/events?${qs}`;
+      abEventBatches.push(kfetchRaw(url));
+    }
+    const abEventResults = await Promise.allSettled(abEventBatches);
+    abEventResults.forEach(r => {
+      if (r.status !== 'fulfilled' || !r.value) return;
+      (r.value._embedded?.events || []).forEach(ev => {
+        const leadId = ev.entity_id;
+        if (!leadId) return;
+        for (const change of (ev.value_after || [])) {
+          // Kommo usa 'custom_field' ou 'custom_field_value' dependendo da versão
+          const field = change.custom_field || change.custom_field_value;
+          if (!field) continue;
+          const fname = (field.field_name || '').toLowerCase();
+          if (!fname.includes('abordagem')) continue;
+          const newVal = field.values?.[0]?.value;
+          if (!newVal || !String(newVal).trim()) continue;
+          // Guarda somente o PRIMEIRO preenchimento
+          if (!abordagemMap[leadId] || ev.created_at < abordagemMap[leadId]) {
+            abordagemMap[leadId] = ev.created_at;
+          }
+        }
+      });
+    });
+
+    return res.status(200).json({ leads: all, contacts, stagesMap, events: eventMap, abordagemMap });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }
