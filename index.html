@@ -1587,6 +1587,18 @@ function lmOpenGOR1(){ if(_goContext)openLeadsModal('R1 Realizadas GO',_goContex
 function lmOpenGOR2(){ if(_goContext)openLeadsModal('R2 Realizadas GO',_goContext.filter(stIsR2R).map(goLeadRow)); }
 function lmOpenGOVendas(){ if(_goContext)openLeadsModal('Vendas GO',_goContext.filter(stIsVenda).map(goLeadRow)); }
 function lmOpenGOCode(el){ const code=el.dataset.goCode; if(code&&_goContext)openLeadsModal(`Abordagem: ${code}`,_goContext.filter(k=>((k.abordagem||'').trim()||'(sem código)')===code).map(goLeadRow)); }
+function lmOpenGODay(el){
+  const day=el.dataset.day, metric=el.dataset.metric;
+  if(!day||!_goContext) return;
+  const{type}=gf();
+  const dayLeads=_goContext.filter(k=>{
+    const ts=type==='status'?(k.stage_ts||k.entry_ts||0):(k.entry_ts||0);
+    return ts&&new Date(ts*1000).toISOString().slice(0,10)===day;
+  });
+  const filters={total:l=>true,ab:l=>l.abordagem&&l.abordagem.trim(),resp:_goIsResp,agend:stIsAgend,r1:stIsR1,r2:stIsR2R,vn:stIsVenda};
+  const labels={total:'Total',ab:'Abordados',resp:'Respostas',agend:'Agendamentos',r1:'R1 Realizadas',r2:'R2 Realizadas',vn:'Vendas'};
+  openLeadsModal(`${labels[metric]||metric} — ${day}`, dayLeads.filter(filters[metric]||_=>true).map(goLeadRow));
+}
 
 function renderLeadsGO(){
   const pool=fKommoGO();
@@ -1721,6 +1733,12 @@ function renderLeadsGO(){
     const vn=KKd(ls.filter(stIsVenda).length);
     return{d,tot,ab,resp,ag,r1,r2,vn};
   });
+  const _goDayCell=(val,day,metric)=>{
+    if(val===null) return`<td>—</td>`;
+    const n=typeof val==='number'?val:0;
+    if(!n) return`<td style="color:var(--text3)">${nn(n)}</td>`;
+    return`<td class="sf-clickable" style="font-weight:600;color:var(--accent)" onclick="lmOpenGODay(this)" data-day="${day}" data-metric="${metric}">${nn(n)}</td>`;
+  };
   daytbl.innerHTML=`<table class="dt">
     <thead><tr>
       <th style="text-align:left">Data</th>
@@ -1729,12 +1747,13 @@ function renderLeadsGO(){
     </tr></thead>
     <tbody>${dayRows.map(r=>`<tr>
       <td style="text-align:left;font-weight:500">${r.d}</td>
-      <td>${nn(r.tot)}</td><td>${nn(r.ab)}</td>
-      <td>${r.resp!==null?nn(r.resp):'—'}</td>
-      <td>${r.ag!==null?nn(r.ag):'—'}</td>
-      <td>${r.r1!==null?nn(r.r1):'—'}</td>
-      <td>${r.r2!==null?nn(r.r2):'—'}</td>
-      <td>${r.vn!==null?nn(r.vn):'—'}</td>
+      ${_goDayCell(r.tot,r.d,'total')}
+      ${_goDayCell(r.ab,r.d,'ab')}
+      ${_goDayCell(r.resp,r.d,'resp')}
+      ${_goDayCell(r.ag,r.d,'agend')}
+      ${_goDayCell(r.r1,r.d,'r1')}
+      ${_goDayCell(r.r2,r.d,'r2')}
+      ${_goDayCell(r.vn,r.d,'vn')}
       <td>${r.tot>0?pct(r.ab/r.tot*100):'—'}</td>
       <td>${r.resp!==null&&r.resp>0?pct(r.ag/r.resp*100):'—'}</td>
     </tr>`).join('')}</tbody>
