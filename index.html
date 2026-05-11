@@ -1548,22 +1548,41 @@ function fKommoGO(){
   return (S.kommoAll.length?S.kommoAll:S.kommo).filter(k=>k.goTagged);
 }
 
-// Respostas GO = SDR respondeu OU já foi agendado (garante Respostas >= Agendamentos)
+// Respostas GO por status atual (Growth mode)
 const _goIsResp=k=>SDR_RESPONDEU_IDS.has(k.status_id)||stIsAgend(k);
+const _ALL_GO_RESP_IDS=new Set([...SDR_RESPONDEU_IDS,...Array.from(CLOSER_AGENDADO_IDS)]);
 
-function _goMetrics(leads){
+// Vendas mode: evento de stage dentro do período
+function _hadEvtGO(k, idSet, from, to){
+  if(!k.stageHistory?.length) return false;
+  return k.stageHistory.some(ev=>{
+    if(from&&ev.date<from) return false;
+    if(to&&ev.date>to) return false;
+    return idSet.has(ev.status_id);
+  });
+}
+
+function _goMetrics(leads, useEvt, from, to){
   const KK=v=>kommoState==='error'?null:v;
   const total=leads.length;
   const nAb=leads.filter(k=>k.abordagem&&k.abordagem.trim()).length;
-  const nResp=leads.filter(_goIsResp).length;
-  const nAgend=leads.filter(stIsAgend).length;
-  const nR1=leads.filter(stIsR1).length;
-  const nR2=leads.filter(stIsR2R).length;
-  const nVendas=leads.filter(stIsVenda).length;
-  return{
-    total,
-    nAb:KK(nAb), nResp:KK(nResp), nAgend:KK(nAgend),
-    nR1:KK(nR1), nR2:KK(nR2), nVendas:KK(nVendas),
+  const nResp=useEvt
+    ?leads.filter(k=>_hadEvtGO(k,_ALL_GO_RESP_IDS,from,to)).length
+    :leads.filter(_goIsResp).length;
+  const nAgend=useEvt
+    ?leads.filter(k=>_hadEvtGO(k,CLOSER_AGENDADO_IDS,from,to)).length
+    :leads.filter(stIsAgend).length;
+  const nR1=useEvt
+    ?leads.filter(k=>_hadEvtGO(k,R1_REALIZADA_IDS,from,to)).length
+    :leads.filter(stIsR1).length;
+  const nR2=useEvt
+    ?leads.filter(k=>_hadEvtGO(k,R2_REALIZADA_IDS,from,to)).length
+    :leads.filter(stIsR2R).length;
+  const nVendas=useEvt
+    ?leads.filter(k=>_hadEvtGO(k,VENDAS_IDS,from,to)).length
+    :leads.filter(stIsVenda).length;
+  return{total,
+    nAb:KK(nAb),nResp:KK(nResp),nAgend:KK(nAgend),nR1:KK(nR1),nR2:KK(nR2),nVendas:KK(nVendas),
     taxaAb:total>0?nAb/total:0,
     taxaResp:nAb>0?nResp/nAb:0,
     taxaAgend:nResp>0?nAgend/nResp:0,
@@ -1573,7 +1592,8 @@ function _goMetrics(leads){
   };
 }
 
-let _goContext=null;
+// Contexto do render atual — usado pelas funções de modal
+let _goContext=null, _goFrom='', _goTo='', _goUseEvt=false;
 
 function goLeadRow(l){
   return{Data:l.entry_date||'',Nome:l.name||'—',Telefone:l.phone_digits||l.phone||'—',Criativo:(l.abordagem||'').trim(),KommoId:l.id||''};
@@ -1581,21 +1601,42 @@ function goLeadRow(l){
 
 function lmOpenGOTotal(){ if(_goContext)openLeadsModal('Total Leads GO',_goContext.map(goLeadRow)); }
 function lmOpenGOAbordados(){ if(_goContext)openLeadsModal('Abordados GO',_goContext.filter(k=>k.abordagem&&k.abordagem.trim()).map(goLeadRow)); }
-function lmOpenGORespostas(){ if(_goContext)openLeadsModal('Respostas GO',_goContext.filter(_goIsResp).map(goLeadRow)); }
-function lmOpenGOAgend(){ if(_goContext)openLeadsModal('Agendamentos GO',_goContext.filter(stIsAgend).map(goLeadRow)); }
-function lmOpenGOR1(){ if(_goContext)openLeadsModal('R1 Realizadas GO',_goContext.filter(stIsR1).map(goLeadRow)); }
-function lmOpenGOR2(){ if(_goContext)openLeadsModal('R2 Realizadas GO',_goContext.filter(stIsR2R).map(goLeadRow)); }
-function lmOpenGOVendas(){ if(_goContext)openLeadsModal('Vendas GO',_goContext.filter(stIsVenda).map(goLeadRow)); }
+function lmOpenGORespostas(){
+  if(!_goContext) return;
+  const fn=_goUseEvt?k=>_hadEvtGO(k,_ALL_GO_RESP_IDS,_goFrom,_goTo):_goIsResp;
+  openLeadsModal('Respostas GO',_goContext.filter(fn).map(goLeadRow));
+}
+function lmOpenGOAgend(){
+  if(!_goContext) return;
+  const fn=_goUseEvt?k=>_hadEvtGO(k,CLOSER_AGENDADO_IDS,_goFrom,_goTo):stIsAgend;
+  openLeadsModal('Agendamentos GO',_goContext.filter(fn).map(goLeadRow));
+}
+function lmOpenGOR1(){
+  if(!_goContext) return;
+  const fn=_goUseEvt?k=>_hadEvtGO(k,R1_REALIZADA_IDS,_goFrom,_goTo):stIsR1;
+  openLeadsModal('R1 Realizadas GO',_goContext.filter(fn).map(goLeadRow));
+}
+function lmOpenGOR2(){
+  if(!_goContext) return;
+  const fn=_goUseEvt?k=>_hadEvtGO(k,R2_REALIZADA_IDS,_goFrom,_goTo):stIsR2R;
+  openLeadsModal('R2 Realizadas GO',_goContext.filter(fn).map(goLeadRow));
+}
+function lmOpenGOVendas(){
+  if(!_goContext) return;
+  const fn=_goUseEvt?k=>_hadEvtGO(k,VENDAS_IDS,_goFrom,_goTo):stIsVenda;
+  openLeadsModal('Vendas GO',_goContext.filter(fn).map(goLeadRow));
+}
 function lmOpenGOCode(el){ const code=el.dataset.goCode; if(code&&_goContext)openLeadsModal(`Abordagem: ${code}`,_goContext.filter(k=>((k.abordagem||'').trim()||'(sem código)')===code).map(goLeadRow)); }
 function lmOpenGODay(el){
   const day=el.dataset.day, metric=el.dataset.metric;
   if(!day||!_goContext) return;
-  const{type}=gf();
   const dayLeads=_goContext.filter(k=>{
-    const ts=type==='status'?(k.stage_ts||k.entry_ts||0):(k.entry_ts||0);
+    const ts=k.entry_ts||0;
     return ts&&new Date(ts*1000).toISOString().slice(0,10)===day;
   });
-  const filters={total:l=>true,ab:l=>l.abordagem&&l.abordagem.trim(),resp:_goIsResp,agend:stIsAgend,r1:stIsR1,r2:stIsR2R,vn:stIsVenda};
+  const filtersEvt={total:()=>true,ab:k=>k.abordagem&&k.abordagem.trim(),resp:k=>_hadEvtGO(k,_ALL_GO_RESP_IDS,day,day),agend:k=>_hadEvtGO(k,CLOSER_AGENDADO_IDS,day,day),r1:k=>_hadEvtGO(k,R1_REALIZADA_IDS,day,day),r2:k=>_hadEvtGO(k,R2_REALIZADA_IDS,day,day),vn:k=>_hadEvtGO(k,VENDAS_IDS,day,day)};
+  const filtersCur={total:()=>true,ab:k=>k.abordagem&&k.abordagem.trim(),resp:_goIsResp,agend:stIsAgend,r1:stIsR1,r2:stIsR2R,vn:stIsVenda};
+  const filters=_goUseEvt?filtersEvt:filtersCur;
   const labels={total:'Total',ab:'Abordados',resp:'Respostas',agend:'Agendamentos',r1:'R1 Realizadas',r2:'R2 Realizadas',vn:'Vendas'};
   const fn=filters[metric]||(()=>true);
   openLeadsModal(`${labels[metric]||metric} — ${day}`, dayLeads.filter(fn).map(goLeadRow));
@@ -1604,8 +1645,10 @@ function lmOpenGODay(el){
 function renderLeadsGO(){
   const pool=fKommoGO();
   const{from,to,type}=gf();
+  const isVendas=type==='status';
+  // Sempre filtra por entry_ts — stage_ts (updated_at) muda a qualquer edição no Kommo
   const leads=pool.filter(k=>{
-    const ts=type==='status'?(k.stage_ts||k.entry_ts||0):(k.entry_ts||0);
+    const ts=k.entry_ts||0;
     if(!ts) return true;
     const d=new Date(ts*1000).toISOString().slice(0,10);
     if(from&&d<from)return false;
@@ -1613,8 +1656,9 @@ function renderLeadsGO(){
     return true;
   });
   _goContext=leads;
+  _goFrom=from; _goTo=to; _goUseEvt=isVendas;
 
-  const m=_goMetrics(leads);
+  const m=_goMetrics(leads,isVendas,from,to);
   const KK=v=>kommoState==='error'?null:v;
 
   const BAR_WIDTHS=[100,88,76,64,55,47,40];
@@ -1707,15 +1751,14 @@ function renderLeadsGO(){
   if(!daytbl) return;
   const dayMap={};
   pool.filter(k=>{
-    // usa todos os leads do pool (sem filtro de período) para construir série histórica
-    const ts=type==='status'?(k.stage_ts||k.entry_ts||0):(k.entry_ts||0);
+    const ts=k.entry_ts||0;
     if(!ts) return false;
     const d=new Date(ts*1000).toISOString().slice(0,10);
     if(from&&d<from)return false;
     if(to&&d>to)return false;
     return true;
   }).forEach(k=>{
-    const ts=type==='status'?(k.stage_ts||k.entry_ts||0):(k.entry_ts||0);
+    const ts=k.entry_ts||0;
     if(!ts) return;
     const d=new Date(ts*1000).toISOString().slice(0,10);
     if(!dayMap[d])dayMap[d]=[];
@@ -1793,7 +1836,7 @@ function _renderGOPeriod(tblId,periodType){
     return{key,
       tot:ls.length,
       ab:ls.filter(k=>k.abordagem&&k.abordagem.trim()).length,
-      resp:KK(ls.filter(k=>SDR_RESPONDEU_IDS.has(k.status_id)||k.pipeline_id===CLOSER_PIPELINE_ID).length),
+      resp:KK(ls.filter(_goIsResp).length),
       agend:KK(ls.filter(stIsAgend).length),
       r1:KK(ls.filter(stIsR1).length),
       r2:KK(ls.filter(stIsR2R).length),
