@@ -41,16 +41,16 @@ export default async function handler(req, res) {
     // Busca stages, leads F-SE e leads do Closer pipeline em paralelo
     const [pipelinesResult, ...allPagesResults] = await Promise.allSettled([
       kfetch('leads/pipelines'),
-      kfetch('leads', { limit: 250, page: 1, with: 'contacts,tags' }),
-      kfetch('leads', { limit: 250, page: 2, with: 'contacts,tags' }),
-      kfetch('leads', { limit: 250, page: 3, with: 'contacts,tags' }),
-      kfetch('leads', { limit: 250, page: 4, with: 'contacts,tags' }),
-      kfetch('leads', { limit: 250, page: 5, with: 'contacts,tags' }),
-      kfetch('leads', { limit: 250, page: 6, with: 'contacts,tags' }),
-      kfetch('leads', { limit: 250, page: 7, with: 'contacts,tags' }),
+      kfetch('leads', { limit: 250, page: 1, with: 'contacts,tags,custom_fields' }),
+      kfetch('leads', { limit: 250, page: 2, with: 'contacts,tags,custom_fields' }),
+      kfetch('leads', { limit: 250, page: 3, with: 'contacts,tags,custom_fields' }),
+      kfetch('leads', { limit: 250, page: 4, with: 'contacts,tags,custom_fields' }),
+      kfetch('leads', { limit: 250, page: 5, with: 'contacts,tags,custom_fields' }),
+      kfetch('leads', { limit: 250, page: 6, with: 'contacts,tags,custom_fields' }),
+      kfetch('leads', { limit: 250, page: 7, with: 'contacts,tags,custom_fields' }),
       // Closer pipeline — inclui leads sem tag F-SE que já foram agendados
-      kfetch('leads', { limit: 250, page: 1, with: 'contacts,tags', 'filter[pipeline_id][]': CLOSER_PIPELINE_ID }),
-      kfetch('leads', { limit: 250, page: 2, with: 'contacts,tags', 'filter[pipeline_id][]': CLOSER_PIPELINE_ID }),
+      kfetch('leads', { limit: 250, page: 1, with: 'contacts,tags,custom_fields', 'filter[pipeline_id][]': CLOSER_PIPELINE_ID }),
+      kfetch('leads', { limit: 250, page: 2, with: 'contacts,tags,custom_fields', 'filter[pipeline_id][]': CLOSER_PIPELINE_ID }),
     ]);
 
     // Monta mapa de stages e detecta pipeline de Recuperação pelo nome
@@ -90,8 +90,8 @@ export default async function handler(req, res) {
     // Necessário porque esses leads saem das páginas gerais ao serem movidos
     if (RECUPERACAO_PIPELINE_ID) {
       const recuperResults = await Promise.allSettled([
-        kfetch('leads', { limit: 250, page: 1, with: 'contacts,tags', 'filter[pipeline_id][]': RECUPERACAO_PIPELINE_ID }),
-        kfetch('leads', { limit: 250, page: 2, with: 'contacts,tags', 'filter[pipeline_id][]': RECUPERACAO_PIPELINE_ID }),
+        kfetch('leads', { limit: 250, page: 1, with: 'contacts,tags,custom_fields', 'filter[pipeline_id][]': RECUPERACAO_PIPELINE_ID }),
+        kfetch('leads', { limit: 250, page: 2, with: 'contacts,tags,custom_fields', 'filter[pipeline_id][]': RECUPERACAO_PIPELINE_ID }),
       ]);
       for (const result of recuperResults) {
         if (result.status !== 'fulfilled') continue;
