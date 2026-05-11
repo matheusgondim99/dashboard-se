@@ -646,6 +646,10 @@ tr.lm-detail:hover td{background:rgba(59,130,246,.04)!important}
           <div id="go9Tbl"><div class="ls"><div class="spin"></div>Carregando...</div></div>
         </div>
         <div class="kpi-grid c6 mt20" id="go9Fin"></div>
+        <div class="sec mt20">Por Dia</div>
+        <div class="panel"><div class="panel-hd"><h3>Por Dia</h3></div>
+          <div class="tbl-wrap" id="go9DayTbl" style="max-height:420px;overflow-y:auto"></div>
+        </div>
         <div class="sec mt20">Por Código de Abordagem</div>
         <div class="panel"><div class="panel-hd"><h3>Abordagens</h3></div>
           <div class="tbl-wrap" id="go9AbordagemTbl"></div>
@@ -1544,11 +1548,14 @@ function fKommoGO(){
   return (S.kommoAll.length?S.kommoAll:S.kommo).filter(k=>k.goTagged);
 }
 
+// Respostas GO = SDR respondeu OU já foi agendado (garante Respostas >= Agendamentos)
+const _goIsResp=k=>SDR_RESPONDEU_IDS.has(k.status_id)||stIsAgend(k);
+
 function _goMetrics(leads){
   const KK=v=>kommoState==='error'?null:v;
   const total=leads.length;
   const nAb=leads.filter(k=>k.abordagem&&k.abordagem.trim()).length;
-  const nResp=leads.filter(k=>SDR_RESPONDEU_IDS.has(k.status_id)||k.pipeline_id===CLOSER_PIPELINE_ID).length;
+  const nResp=leads.filter(_goIsResp).length;
   const nAgend=leads.filter(stIsAgend).length;
   const nR1=leads.filter(stIsR1).length;
   const nR2=leads.filter(stIsR2R).length;
@@ -1574,19 +1581,20 @@ function goLeadRow(l){
 
 function lmOpenGOTotal(){ if(_goContext)openLeadsModal('Total Leads GO',_goContext.map(goLeadRow)); }
 function lmOpenGOAbordados(){ if(_goContext)openLeadsModal('Abordados GO',_goContext.filter(k=>k.abordagem&&k.abordagem.trim()).map(goLeadRow)); }
-function lmOpenGORespostas(){ if(_goContext)openLeadsModal('Respostas GO',_goContext.filter(k=>SDR_RESPONDEU_IDS.has(k.status_id)||k.pipeline_id===CLOSER_PIPELINE_ID).map(goLeadRow)); }
+function lmOpenGORespostas(){ if(_goContext)openLeadsModal('Respostas GO',_goContext.filter(_goIsResp).map(goLeadRow)); }
 function lmOpenGOAgend(){ if(_goContext)openLeadsModal('Agendamentos GO',_goContext.filter(stIsAgend).map(goLeadRow)); }
 function lmOpenGOR1(){ if(_goContext)openLeadsModal('R1 Realizadas GO',_goContext.filter(stIsR1).map(goLeadRow)); }
 function lmOpenGOR2(){ if(_goContext)openLeadsModal('R2 Realizadas GO',_goContext.filter(stIsR2R).map(goLeadRow)); }
 function lmOpenGOVendas(){ if(_goContext)openLeadsModal('Vendas GO',_goContext.filter(stIsVenda).map(goLeadRow)); }
-function lmOpenGOCode(code){ if(_goContext)openLeadsModal(`Abordagem: ${code}`,_goContext.filter(k=>((k.abordagem||'').trim()||'(sem código)')===code).map(goLeadRow)); }
+function lmOpenGOCode(el){ const code=el.dataset.goCode; if(code&&_goContext)openLeadsModal(`Abordagem: ${code}`,_goContext.filter(k=>((k.abordagem||'').trim()||'(sem código)')===code).map(goLeadRow)); }
 
 function renderLeadsGO(){
   const pool=fKommoGO();
-  const{from,to}=gf();
+  const{from,to,type}=gf();
   const leads=pool.filter(k=>{
-    if(!k.entry_ts) return true;
-    const d=new Date(k.entry_ts*1000).toISOString().slice(0,10);
+    const ts=type==='status'?(k.stage_ts||k.entry_ts||0):(k.entry_ts||0);
+    if(!ts) return true;
+    const d=new Date(ts*1000).toISOString().slice(0,10);
     if(from&&d<from)return false;
     if(to&&d>to)return false;
     return true;
@@ -1651,7 +1659,7 @@ function renderLeadsGO(){
     .sort((a,b)=>b[1].length-a[1].length)
     .map(([code,ls])=>{
       const tot=ls.length;
-      const resp=KK(ls.filter(k=>SDR_RESPONDEU_IDS.has(k.status_id)||k.pipeline_id===CLOSER_PIPELINE_ID).length);
+      const resp=KK(ls.filter(_goIsResp).length);
       const ag=KK(ls.filter(stIsAgend).length);
       const r1n=KK(ls.filter(stIsR1).length);
       const r2n=KK(ls.filter(stIsR2R).length);
@@ -1667,7 +1675,7 @@ function renderLeadsGO(){
       <th>Total</th><th>Resp.</th><th>Agend.</th><th>R1</th><th>R2</th><th>Vendas</th>
       <th>% Resp</th><th>% Agend</th><th>% Conv</th>
     </tr></thead>
-    <tbody>${abRows.map(r=>`<tr class="sf-clickable" onclick="lmOpenGOCode(${JSON.stringify(r.code)})">
+    <tbody>${abRows.map(r=>`<tr class="sf-clickable" onclick="lmOpenGOCode(this)" data-go-code="${(r.code).replace(/"/g,'&quot;')}">
       <td style="text-align:left;font-weight:600">${r.code} <i class="sf-ci">↗</i></td>
       <td>${nn(r.tot)}</td>
       <td>${r.resp!==null?nn(r.resp):'—'}</td>
@@ -1678,6 +1686,57 @@ function renderLeadsGO(){
       <td>${r.taxaResp!==null?pct(r.taxaResp*100):'—'}</td>
       <td>${r.taxaAgend!==null?pct(r.taxaAgend*100):'—'}</td>
       <td>${r.taxaConv!==null?pct(r.taxaConv*100):'—'}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+
+  // Tabela por dia
+  const daytbl=document.getElementById('go9DayTbl');
+  if(!daytbl) return;
+  const dayMap={};
+  pool.filter(k=>{
+    // usa todos os leads do pool (sem filtro de período) para construir série histórica
+    const ts=type==='status'?(k.stage_ts||k.entry_ts||0):(k.entry_ts||0);
+    if(!ts) return false;
+    const d=new Date(ts*1000).toISOString().slice(0,10);
+    if(from&&d<from)return false;
+    if(to&&d>to)return false;
+    return true;
+  }).forEach(k=>{
+    const ts=type==='status'?(k.stage_ts||k.entry_ts||0):(k.entry_ts||0);
+    if(!ts) return;
+    const d=new Date(ts*1000).toISOString().slice(0,10);
+    if(!dayMap[d])dayMap[d]=[];
+    dayMap[d].push(k);
+  });
+  const dayKeys=Object.keys(dayMap).sort().reverse();
+  const KKd=v=>kommoState==='error'?null:v;
+  const dayRows=dayKeys.map(d=>{
+    const ls=dayMap[d];
+    const tot=ls.length;
+    const ab=ls.filter(k=>k.abordagem&&k.abordagem.trim()).length;
+    const resp=KKd(ls.filter(_goIsResp).length);
+    const ag=KKd(ls.filter(stIsAgend).length);
+    const r1=KKd(ls.filter(stIsR1).length);
+    const r2=KKd(ls.filter(stIsR2R).length);
+    const vn=KKd(ls.filter(stIsVenda).length);
+    return{d,tot,ab,resp,ag,r1,r2,vn};
+  });
+  daytbl.innerHTML=`<table class="dt">
+    <thead><tr>
+      <th style="text-align:left">Data</th>
+      <th>Total</th><th>Abordados</th><th>Respostas</th><th>Agend.</th><th>R1</th><th>R2</th><th>Vendas</th>
+      <th>% Ab</th><th>% Agend</th>
+    </tr></thead>
+    <tbody>${dayRows.map(r=>`<tr>
+      <td style="text-align:left;font-weight:500">${r.d}</td>
+      <td>${nn(r.tot)}</td><td>${nn(r.ab)}</td>
+      <td>${r.resp!==null?nn(r.resp):'—'}</td>
+      <td>${r.ag!==null?nn(r.ag):'—'}</td>
+      <td>${r.r1!==null?nn(r.r1):'—'}</td>
+      <td>${r.r2!==null?nn(r.r2):'—'}</td>
+      <td>${r.vn!==null?nn(r.vn):'—'}</td>
+      <td>${r.tot>0?pct(r.ab/r.tot*100):'—'}</td>
+      <td>${r.resp!==null&&r.resp>0?pct(r.ag/r.resp*100):'—'}</td>
     </tr>`).join('')}</tbody>
   </table>`;
 }
