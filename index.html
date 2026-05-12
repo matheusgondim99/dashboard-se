@@ -736,7 +736,7 @@ tr.lm-detail:hover td{background:rgba(59,130,246,.04)!important}
 const S = { traffic:[], leads:[], metas:[], kommo:[], kommoAll:[], criativos:[], leadsEP:[], metasEP:[], metasGO:[], okrs:[], okrDash:[] };
 let kommoState = 'pending'; // 'pending' | 'connected' | 'error'
 let _kommoSub = ''; // subdomain guardado em memória ao conectar
-const KOMMO_CACHE_KEY = 'se_kommo_data_v4';
+const KOMMO_CACHE_KEY = 'se_kommo_data_v5';
 const KOMMO_CACHE_TTL = 10 * 60 * 1000; // 10 minutos
 let _kommoRefreshInterval = null;
 
@@ -5124,7 +5124,16 @@ function showDebugMetrics(){
     ).join('')+`</table>`+
     `<details style="margin-top:12px"><summary style="cursor:pointer;color:#86efac;font-size:11px">📋 Leads planilha no período (${(m._sheetLeads||[]).length})</summary><pre style="margin-top:8px;font-size:10px;overflow:auto;max-height:160px">${JSON.stringify(m._sheetLeads||[],null,2)}</pre></details>`+
     `<details style="margin-top:8px"><summary style="cursor:pointer;color:#94a3b8;font-size:11px">✅ Kommo leads matched (${m._km.length})</summary><pre style="margin-top:8px;font-size:10px;overflow:auto;max-height:200px">${JSON.stringify(m._km.map(k=>({name:k.name,phone:normPhone(k.phone_digits||k.phone||''),stage:k.stage,status_id:k.status_id,stIsR2R:stIsR2R(k),stIsR1:stIsR1(k)})),null,2)}</pre></details>`+
-    `<details style="margin-top:8px"><summary style="cursor:pointer;color:#f87171;font-size:11px">❌ Leads planilha SEM match Kommo (${(m._unmatched||[]).length})</summary><pre style="margin-top:8px;font-size:10px;overflow:auto;max-height:200px">${JSON.stringify(m._unmatched||[],null,2)}</pre></details>`;
+    `<details style="margin-top:8px"><summary style="cursor:pointer;color:#f87171;font-size:11px">❌ Leads planilha SEM match Kommo (${(m._unmatched||[]).length})</summary><pre style="margin-top:8px;font-size:10px;overflow:auto;max-height:200px">${JSON.stringify(m._unmatched||[],null,2)}</pre></details>`+
+    (()=>{
+      const goPool=fKommoGO();
+      const{from,to}=gf();
+      const today=new Date().toISOString().slice(0,10);
+      const goToday=goPool.filter(k=>{const ts=k.sdr_entry_ts||0;if(!ts)return false;return new Date(ts*1000).toISOString().slice(0,10)===today;});
+      const goRange=goPool.filter(k=>{const ts=k.sdr_entry_ts||0;if(!ts)return true;const d=new Date(ts*1000).toISOString().slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false;return true;});
+      const sample=goPool.slice(0,5).map(k=>({name:k.name,id:k.id,pipeline_id:k.pipeline_id,sdr_entry_ts:k.sdr_entry_ts,sdr_date:k.sdr_entry_ts?new Date(k.sdr_entry_ts*1000).toISOString().slice(0,10):'(sem ts)',stage:k.stage}));
+      return`<details style="margin-top:8px"><summary style="cursor:pointer;color:#fbbf24;font-size:11px">GO debug: pool=${goPool.length} | hoje=${goToday.length} | no período=${goRange.length}</summary><pre style="margin-top:8px;font-size:10px;overflow:auto;max-height:200px">${JSON.stringify(sample,null,2)}</pre></details>`;
+    })();
   const ov=document.getElementById('debugModal');
   ov.classList.remove('hidden');
   requestAnimationFrame(()=>ov.classList.add('lm-open'));

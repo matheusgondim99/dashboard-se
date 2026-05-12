@@ -39,7 +39,7 @@ export default async function handler(req, res) {
   const SDR_PIPELINE_ID = 13105099;
 
   try {
-    // Busca stages, leads F-SE e leads do Closer pipeline em paralelo
+    // Busca stages, leads F-SE, Closer pipeline e SDR pipeline em paralelo
     const [pipelinesResult, ...allPagesResults] = await Promise.allSettled([
       kfetch('leads/pipelines'),
       kfetch('leads', { limit: 250, page: 1, with: 'contacts,tags,custom_fields' }),
@@ -52,6 +52,9 @@ export default async function handler(req, res) {
       // Closer pipeline — inclui leads sem tag F-SE que já foram agendados
       kfetch('leads', { limit: 250, page: 1, with: 'contacts,tags,custom_fields', 'filter[pipeline_id][]': CLOSER_PIPELINE_ID }),
       kfetch('leads', { limit: 250, page: 2, with: 'contacts,tags,custom_fields', 'filter[pipeline_id][]': CLOSER_PIPELINE_ID }),
+      // SDR pipeline — captura leads GO que podem não ter tag "F - Leads GO"
+      kfetch('leads', { limit: 250, page: 1, with: 'contacts,tags,custom_fields', 'filter[pipeline_id][]': SDR_PIPELINE_ID }),
+      kfetch('leads', { limit: 250, page: 2, with: 'contacts,tags,custom_fields', 'filter[pipeline_id][]': SDR_PIPELINE_ID }),
     ]);
 
     // Monta mapa de stages, detecta pipeline de Recuperação e coleta stages do SDR
@@ -63,16 +66,28 @@ export default async function handler(req, res) {
         if ((p.name || '').toLowerCase().includes('recup')) RECUPERACAO_PIPELINE_ID = p.id;
         (p._embedded?.statuses || []).forEach(s => {
           stagesMap[s.id] = s.name;
-          if (Number(p.id) === SDR_PIPELINE_ID) sdrStatusIds.add(s.id);
+          if (Number(p.id) === SDR_PIPELINE_ID) sdrStatusIds.add(Number(s.id));
         });
       });
     }
 
-    // Páginas gerais (F-SE tag filter) vs páginas do Closer pipeline
-    const pagesResults = allPagesResults.slice(0, 7);
-    const closerPagesResults = allPagesResults.slice(7);
+    // Se o pipeline SDR não retornou stages (ou ID incorreto), busca diretamente
+    if (sdrStatusIds.size === 0) {
+      const sdrPipeline = await kfetchRaw(`https://${subdomain}.kommo.com/api/v4/leads/pipelines/${SDR_PIPELINE_ID}`);
+      if (sdrPipeline?._embedded?.statuses) {
+        sdrPipeline._embedded.statuses.forEach(s => {
+          stagesMap[s.id] = s.name;
+          sdrStatusIds.add(Number(s.id));
+        });
+      }
+    }
 
-    // Coleta leads F-SE de todas as páginas que retornaram OK
+    // Páginas gerais (F-SE tag filter) vs páginas do Closer pipeline vs SDR pipeline
+    const pagesResults = allPagesResults.slice(0, 7);
+    const closerPagesResults = allPagesResults.slice(7, 9);
+    const sdrPagesResults = allPagesResults.slice(9);
+
+    // Coleta leads F-SE/GO de todas as páginas que retornaram OK
     let all = [];
     const seenIds = new Set();
     for (const result of pagesResults) {
@@ -90,6 +105,13 @@ export default async function handler(req, res) {
 
     // Adiciona leads do Closer pipeline (sem filtro de tag — já foram agendados)
     for (const result of closerPagesResults) {
+      if (result.status !== 'fulfilled') continue;
+      const items = result.value?._embedded?.leads || [];
+      items.forEach(l => { if (!seenIds.has(l.id)) { seenIds.add(l.id); all.push(l); } });
+    }
+
+    // Adiciona leads do SDR pipeline (sem filtro de tag — GO leads podem não ter a tag)
+    for (const result of sdrPagesResults) {
       if (result.status !== 'fulfilled') continue;
       const items = result.value?._embedded?.leads || [];
       items.forEach(l => { if (!seenIds.has(l.id)) { seenIds.add(l.id); all.push(l); } });
@@ -145,10 +167,18 @@ export default async function handler(req, res) {
         if (!leadId || !statusId) return;
         if (!eventMap[leadId]) eventMap[leadId] = [];
         eventMap[leadId].push({ status_id: statusId, ts: ev.created_at });
-        // Detecta primeira entrada em stage do pipeline SDR (por ID ou por nome do stage)
-        const stageName = stagesMap[statusId] || '';
-        if (sdrStatusIds.has(statusId) || stageName.toLowerCase().includes('[o] sdr') || stageName.toLowerCase().startsWith('01 sdr')) {
-          if (!sdrEntryMap[leadId] || ev.created_at < sdrEntryMap[leadId]) {
+        // Detecta entrada em stage do pipeline SDR (por ID ou por nome do stage)
+        const stageName = stagesMap[statusId] || stagesMap[String(statusId)] || '';
+        const isSDRStage = sdrStatusIds.has(Number(statusId)) || sdrStatusIds.has(statusId)
+          || stageName.toLowerCase().includes('[o] sdr')
+          || stageName.toLowerCase().startsWith('01 sdr')
+          || stageName.toLowerCase().includes('novo lead');
+        // Especificamente rastrea entrada em "01 SDR - Novo Lead" (primeira etapa)
+        const isNovoLead = stageName.toLowerCase().includes('novo lead')
+          || (sdrStatusIds.size === 0 && isSDRStage);
+        if (isNovoLead) {
+          // Guarda o MAIS RECENTE "Novo Lead" — re-entradas contam como nova abordagem
+          if (!sdrEntryMap[leadId] || ev.created_at > sdrEntryMap[leadId]) {
             sdrEntryMap[leadId] = ev.created_at;
           }
         }
