@@ -63,7 +63,7 @@ export default async function handler(req, res) {
         if ((p.name || '').toLowerCase().includes('recup')) RECUPERACAO_PIPELINE_ID = p.id;
         (p._embedded?.statuses || []).forEach(s => {
           stagesMap[s.id] = s.name;
-          if (p.id === SDR_PIPELINE_ID) sdrStatusIds.add(s.id);
+          if (Number(p.id) === SDR_PIPELINE_ID) sdrStatusIds.add(s.id);
         });
       });
     }
@@ -145,8 +145,9 @@ export default async function handler(req, res) {
         if (!leadId || !statusId) return;
         if (!eventMap[leadId]) eventMap[leadId] = [];
         eventMap[leadId].push({ status_id: statusId, ts: ev.created_at });
-        // Detecta primeira entrada em stage do pipeline SDR
-        if (sdrStatusIds.has(statusId)) {
+        // Detecta primeira entrada em stage do pipeline SDR (por ID ou por nome do stage)
+        const stageName = stagesMap[statusId] || '';
+        if (sdrStatusIds.has(statusId) || stageName.toLowerCase().includes('[o] sdr') || stageName.toLowerCase().startsWith('01 sdr')) {
           if (!sdrEntryMap[leadId] || ev.created_at < sdrEntryMap[leadId]) {
             sdrEntryMap[leadId] = ev.created_at;
           }
