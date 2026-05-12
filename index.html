@@ -736,7 +736,7 @@ tr.lm-detail:hover td{background:rgba(59,130,246,.04)!important}
 const S = { traffic:[], leads:[], metas:[], kommo:[], kommoAll:[], criativos:[], leadsEP:[], metasEP:[], metasGO:[], okrs:[], okrDash:[] };
 let kommoState = 'pending'; // 'pending' | 'connected' | 'error'
 let _kommoSub = ''; // subdomain guardado em memória ao conectar
-const KOMMO_CACHE_KEY = 'se_kommo_data_v3';
+const KOMMO_CACHE_KEY = 'se_kommo_data_v4';
 const KOMMO_CACHE_TTL = 10 * 60 * 1000; // 10 minutos
 let _kommoRefreshInterval = null;
 
@@ -4512,11 +4512,15 @@ async function connectKommo(){
         // 3) se está AGORA em Novo Lead → updated_at (o bot acabou de movê-lo)
         // 4) created_at como último recurso
         sdr_entry_ts:(()=>{
+          // 1) Evento exato de mudança de stage para "Novo Lead" no stageHistory
           const ev=stageHistory.find(e=>{const s=(stagesMap[e.status_id]||'').toLowerCase();return s.includes('01 sdr')&&s.includes('novo lead');});
           if(ev) return ev.ts;
+          // 2) sdrEntryMap vindo do servidor (batch de eventos da API)
           if(sdrEntryMap[lead.id]) return sdrEntryMap[lead.id];
-          const curSn=(stagesMap[lead.status_id]||'').toLowerCase();
-          if(curSn.includes('01 sdr')&&curSn.includes('novo lead')) return lead.updated_at||lead.created_at||0;
+          // 3) Lead está atualmente no pipeline SDR → usa updated_at (quando o bot o moveu)
+          // Não depende de stagesMap pois stages SDR podem não estar no mapa local
+          if(Number(lead.pipeline_id)===SDR_PIPELINE_ID) return lead.updated_at||lead.created_at||0;
+          // 4) Último recurso
           return lead.created_at||0;
         })(),
         data_r1_ts,
