@@ -1548,9 +1548,9 @@ function fKommoGO(){
   return (S.kommoAll.length?S.kommoAll:S.kommo).filter(k=>k.goTagged);
 }
 
-// Respostas GO por status atual (Growth mode)
-const _goIsResp=k=>SDR_RESPONDEU_IDS.has(k.status_id)||stIsAgend(k);
-const _ALL_GO_RESP_IDS=new Set([...SDR_RESPONDEU_IDS,...Array.from(CLOSER_AGENDADO_IDS)]);
+// Respostas GO — populados após stagesMap carregar (stages 'atendimento' + Closer)
+let _goIsResp=k=>stIsAgend(k); // placeholder até stagesMap estar disponível
+let _ALL_GO_RESP_IDS=new Set([...CLOSER_AGENDADO_IDS]);
 
 // Vendas mode: evento de stage dentro do período
 function _hadEvtGO(k, idSet, from, to){
@@ -4507,11 +4507,11 @@ async function connectKommo(){
         entry_ts:lead.created_at||0,
         stage_ts:lead.updated_at||0,
         abordagem_ts:abordagemMap[lead.id]||null,
-        // Primeira entrada em stage SDR detectada pelo stageHistory (nome do stage)
-        // Fallback: sdrEntryMap do servidor → 0 (sem data = inclui o lead sempre)
+        // Data em que o lead entrou em "01 SDR - Novo Lead" (via stageHistory)
+        // Fallback: sdrEntryMap do servidor → created_at do lead
         sdr_entry_ts:(()=>{
-          const ev=stageHistory.find(e=>{const s=(stagesMap[e.status_id]||'').toLowerCase();return s.startsWith('01 sdr')||s.includes('[o] sdr');});
-          return ev?ev.ts:(sdrEntryMap[lead.id]||0);
+          const ev=stageHistory.find(e=>{const s=(stagesMap[e.status_id]||'').toLowerCase();return s.includes('01 sdr')&&s.includes('novo lead');});
+          return ev?ev.ts:(sdrEntryMap[lead.id]||lead.created_at||0);
         })(),
         data_r1_ts,
         data_r2_ts,
@@ -4535,6 +4535,19 @@ async function connectKommo(){
     });
 
     enrichKommoWithSheet();
+
+    // Atualiza Sets de resposta GO a partir dos nomes de stage do Kommo
+    // Conta como Resposta: stages com 'atendimento' ou 'contato futuro' no nome
+    // Exclui: 'novo lead', 'follow up', 'disparo', 'contato inv', 'sem contato'
+    {
+      const _goRespIds=new Set();
+      Object.entries(stagesMap).forEach(([id,name])=>{
+        const n=name.toLowerCase();
+        if(n.includes('atendimento')||n.includes('contato futuro')) _goRespIds.add(Number(id));
+      });
+      _goIsResp=k=>_goRespIds.has(k.status_id)||stIsAgend(k);
+      _ALL_GO_RESP_IDS=new Set([..._goRespIds,...CLOSER_AGENDADO_IDS]);
+    }
 
     // Persiste eventos + snapshot no IDB e reconstrói S.kommoAll
     _saveKommoToIDB(S.kommo, eventsMap).catch(e=>console.warn('[IDB] save error',e));
