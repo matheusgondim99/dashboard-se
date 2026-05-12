@@ -36,6 +36,7 @@ export default async function handler(req, res) {
   };
 
   const CLOSER_PIPELINE_ID = 11997467;
+  const SDR_PIPELINE_ID = 13105099;
 
   try {
     // Busca stages, leads F-SE e leads do Closer pipeline em paralelo
@@ -53,13 +54,17 @@ export default async function handler(req, res) {
       kfetch('leads', { limit: 250, page: 2, with: 'contacts,tags,custom_fields', 'filter[pipeline_id][]': CLOSER_PIPELINE_ID }),
     ]);
 
-    // Monta mapa de stages e detecta pipeline de Recuperação pelo nome
+    // Monta mapa de stages, detecta pipeline de Recuperação e coleta stages do SDR
     const stagesMap = {};
+    const sdrStatusIds = new Set(); // status_ids que pertencem ao pipeline SDR
     let RECUPERACAO_PIPELINE_ID = null;
     if (pipelinesResult.status === 'fulfilled') {
       (pipelinesResult.value?._embedded?.pipelines || []).forEach(p => {
         if ((p.name || '').toLowerCase().includes('recup')) RECUPERACAO_PIPELINE_ID = p.id;
-        (p._embedded?.statuses || []).forEach(s => { stagesMap[s.id] = s.name; });
+        (p._embedded?.statuses || []).forEach(s => {
+          stagesMap[s.id] = s.name;
+          if (p.id === SDR_PIPELINE_ID) sdrStatusIds.add(s.id);
+        });
       });
     }
 
@@ -130,6 +135,7 @@ export default async function handler(req, res) {
       const url = `https://${subdomain}.kommo.com/api/v4/events?${qs}`;
       eventBatches.push(kfetchRaw(url));
     }
+    const sdrEntryMap = {}; // leadId → timestamp da primeira vez que entrou em qualquer stage SDR
     const eventResults = await Promise.allSettled(eventBatches);
     eventResults.forEach(r => {
       if (r.status !== 'fulfilled' || !r.value) return;
@@ -139,6 +145,12 @@ export default async function handler(req, res) {
         if (!leadId || !statusId) return;
         if (!eventMap[leadId]) eventMap[leadId] = [];
         eventMap[leadId].push({ status_id: statusId, ts: ev.created_at });
+        // Detecta primeira entrada em stage do pipeline SDR
+        if (sdrStatusIds.has(statusId)) {
+          if (!sdrEntryMap[leadId] || ev.created_at < sdrEntryMap[leadId]) {
+            sdrEntryMap[leadId] = ev.created_at;
+          }
+        }
       });
     });
     // Ordena cada lista por timestamp crescente
@@ -177,7 +189,7 @@ export default async function handler(req, res) {
       });
     });
 
-    return res.status(200).json({ leads: all, contacts, stagesMap, events: eventMap, abordagemMap });
+    return res.status(200).json({ leads: all, contacts, stagesMap, events: eventMap, abordagemMap, sdrEntryMap });
   } catch (err) {
     return res.status(500).json({ error: err.message });
   }

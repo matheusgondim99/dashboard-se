@@ -1629,7 +1629,7 @@ function lmOpenGODay(el){
   const day=el.dataset.day, metric=el.dataset.metric;
   if(!day||!_goContext) return;
   const dayLeads=_goContext.filter(k=>{
-    const ts=k.entry_ts||0;
+    const ts=k.sdr_entry_ts||0;
     return ts&&new Date(ts*1000).toISOString().slice(0,10)===day;
   });
   const filtersEvt={total:()=>true,ab:()=>true,resp:k=>_hadEvtGO(k,_ALL_GO_RESP_IDS,day,day),agend:k=>_hadEvtGO(k,CLOSER_AGENDADO_IDS,day,day),r1:k=>_hadEvtGO(k,R1_REALIZADA_IDS,day,day),r2:k=>_hadEvtGO(k,R2_REALIZADA_IDS,day,day),vn:k=>_hadEvtGO(k,VENDAS_IDS,day,day)};
@@ -1644,9 +1644,9 @@ function renderLeadsGO(){
   const pool=fKommoGO();
   const{from,to,type}=gf();
   const isVendas=type==='status';
-  // Filtra por entry_ts — entrada no pipeline = lead abordado
+  // Filtra por sdr_entry_ts — quando o lead entrou no pipeline SDR (não created_at, que pode ser de outro pipeline)
   const leads=pool.filter(k=>{
-    const ts=k.entry_ts||0;
+    const ts=k.sdr_entry_ts||0;
     if(!ts) return true;
     const d=new Date(ts*1000).toISOString().slice(0,10);
     if(from&&d<from)return false;
@@ -1747,14 +1747,14 @@ function renderLeadsGO(){
   if(!daytbl) return;
   const dayMap={};
   pool.filter(k=>{
-    const ts=k.entry_ts||0;
+    const ts=k.sdr_entry_ts||0;
     if(!ts) return false;
     const d=new Date(ts*1000).toISOString().slice(0,10);
     if(from&&d<from)return false;
     if(to&&d>to)return false;
     return true;
   }).forEach(k=>{
-    const ts=k.entry_ts||0;
+    const ts=k.sdr_entry_ts||0;
     if(!ts) return;
     const d=new Date(ts*1000).toISOString().slice(0,10);
     if(!dayMap[d])dayMap[d]=[];
@@ -1819,7 +1819,7 @@ function _renderGOPeriod(tblId,periodType){
   }
   const map={};
   pool.forEach(k=>{
-    const periodTs=k.abordagem_ts||k.entry_ts||0;
+    const periodTs=k.sdr_entry_ts||0;
     if(!periodTs)return;
     const d=new Date(periodTs*1000);
     const key=periodType==='week'?_goISOWeek(d):`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
@@ -4419,6 +4419,7 @@ async function connectKommo(){
     const stagesMap=payload.stagesMap||{};
     const eventsMap=payload.events||{}; // leadId → [{status_id, ts}]
     const abordagemMap=payload.abordagemMap||{}; // leadId → ts do primeiro preenchimento do campo abordagem
+    const sdrEntryMap=payload.sdrEntryMap||{}; // leadId → ts da primeira entrada em stage do SDR
 
     S.kommo=all.map(lead=>{
       const cr=lead._embedded?.contacts?.[0]||{}, cd=cMap[cr.id]||{};
@@ -4506,6 +4507,7 @@ async function connectKommo(){
         entry_ts:lead.created_at||0,
         stage_ts:lead.updated_at||0,
         abordagem_ts:abordagemMap[lead.id]||null,
+        sdr_entry_ts:sdrEntryMap[lead.id]||lead.created_at||0,
         data_r1_ts,
         data_r2_ts,
         data_r1:data_r1_ts?new Date(data_r1_ts*1000).toLocaleDateString('pt-BR'):'',
