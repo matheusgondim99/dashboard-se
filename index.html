@@ -736,7 +736,7 @@ tr.lm-detail:hover td{background:rgba(59,130,246,.04)!important}
 const S = { traffic:[], leads:[], metas:[], kommo:[], kommoAll:[], criativos:[], leadsEP:[], metasEP:[], metasGO:[], okrs:[], okrDash:[] };
 let kommoState = 'pending'; // 'pending' | 'connected' | 'error'
 let _kommoSub = ''; // subdomain guardado em memória ao conectar
-const KOMMO_CACHE_KEY = 'se_kommo_data_v6';
+const KOMMO_CACHE_KEY = 'se_kommo_data_v7';
 const KOMMO_CACHE_TTL = 10 * 60 * 1000; // 10 minutos
 let _kommoRefreshInterval = null;
 
@@ -4429,8 +4429,20 @@ async function connectKommo(){
     const sdrEntryMap=payload.sdrEntryMap||{}; // leadId → ts da primeira entrada em stage do SDR
 
     S.kommo=all.map(lead=>{
-      const cr=lead._embedded?.contacts?.[0]||{}, cd=cMap[cr.id]||{};
-      const cf=cd.custom_fields_values||[], lf=lead.custom_fields_values||[];
+      // Itera todos os contatos do lead para encontrar o que tem telefone
+      // (leads com múltiplos contatos — ex: contato principal + Celular SDR)
+      const _hasPhoneFld=flds=>flds.some(f=>
+        ((f.field_code==='PHONE')||/(tel|fone|phone)/i.test(f.field_name||''))&&f.values?.[0]?.value
+      );
+      let cd=(()=>{
+        for(const _cr of (lead._embedded?.contacts||[])){
+          const _cd=cMap[_cr.id]||{};
+          const _cf=_cd.custom_fields_values||[];
+          if(_hasPhoneFld(_cf)||Array.isArray(_cd.phone)&&_cd.phone.length>0) return _cd;
+        }
+        return cMap[(lead._embedded?.contacts?.[0]||{}).id]||{};
+      })();
+      let cf=cd.custom_fields_values||[], lf=lead.custom_fields_values||[];
       // g(): find a field by field_code OR field_name contains n
       const g=(fields,n)=>{
         const nl=n.toLowerCase();
@@ -4544,7 +4556,7 @@ async function connectKommo(){
         qualificacao:g(lf,'qualificação')||g(lf,'qualificacao')||g(cf,'qualificação')||g(cf,'qualificacao')||'',
         phone_digits:extractPhone(cf,cd),
         email:extractEmail(cf,cd),
-        seTagged:(lead._embedded?.tags||[]).some(t=>(t.name||'').toLowerCase().includes('f - se')),
+        seTagged:(lead._embedded?.tags||[]).some(t=>(t.name||'').toLowerCase().includes('f - se'))||Number(lead.pipeline_id)===CLOSER_PIPELINE_ID,
         palestraTagged:(lead._embedded?.tags||[]).some(t=>(t.name||'').toLowerCase().includes('f - palestra')),
         clubTagged:(lead._embedded?.tags||[]).some(t=>(t.name||'').toLowerCase().includes('f - club')),
         goTagged:(lead._embedded?.tags||[]).some(t=>(t.name||'').toLowerCase().includes('f - leads go')),
@@ -5144,6 +5156,12 @@ function showDebugMetrics(){
       const goRange=goPool.filter(k=>{const ts=k.sdr_entry_ts||0;if(!ts)return true;const d=new Date(ts*1000).toISOString().slice(0,10);if(from&&d<from)return false;if(to&&d>to)return false;return true;});
       const sample=goPool.slice(0,5).map(k=>({name:k.name,id:k.id,pipeline_id:k.pipeline_id,sdr_entry_ts:k.sdr_entry_ts,sdr_date:k.sdr_entry_ts?new Date(k.sdr_entry_ts*1000).toISOString().slice(0,10):'(sem ts)',stage:k.stage}));
       return`<details style="margin-top:8px"><summary style="cursor:pointer;color:#fbbf24;font-size:11px">GO debug: pool=${goPool.length} | hoje=${goToday.length} | no período=${goRange.length}</summary><pre style="margin-top:8px;font-size:10px;overflow:auto;max-height:200px">${JSON.stringify(sample,null,2)}</pre></details>`;
+    })()+
+    (()=>{
+      const pool=S.kommoAll.length?S.kommoAll:S.kommo;
+      const closerLeads=pool.filter(l=>Number(l.pipeline_id)===CLOSER_PIPELINE_ID);
+      const closerDebug=closerLeads.slice(0,10).map(l=>({name:l.name,id:l.id,phone_digits:l.phone_digits||'(vazio)',phone:l.phone||'(vazio)',normPhone:normPhone(l.phone_digits||l.phone||''),stage:l.stage,seTagged:l.seTagged}));
+      return`<details style="margin-top:8px"><summary style="cursor:pointer;color:#a78bfa;font-size:11px">Closer pipeline: ${closerLeads.length} leads | seTagged=true: ${closerLeads.filter(l=>l.seTagged).length}</summary><pre style="margin-top:8px;font-size:10px;overflow:auto;max-height:200px">${JSON.stringify(closerDebug,null,2)}</pre></details>`;
     })();
   const ov=document.getElementById('debugModal');
   ov.classList.remove('hidden');
