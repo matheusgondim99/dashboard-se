@@ -1552,6 +1552,13 @@ function fKommoGO(){
 let _goIsResp=k=>stIsAgend(k); // placeholder até stagesMap estar disponível
 let _ALL_GO_RESP_IDS=new Set([...CLOSER_AGENDADO_IDS]);
 
+// Retorna true se o lead JÁ passou por etapa de resposta (atual OU histórico)
+// Cobre o caso: lead respondeu → foi para Follow Up → ainda conta como Resposta
+function _hasEverRespGO(k){
+  if(_goIsResp(k)) return true;
+  return (k.stageHistory||[]).some(ev=>_ALL_GO_RESP_IDS.has(ev.status_id));
+}
+
 // Vendas mode: evento de stage dentro do período
 function _hadEvtGO(k, idSet, from, to){
   if(!k.stageHistory?.length) return false;
@@ -1567,7 +1574,7 @@ function _goMetrics(leads, useEvt, from, to){
   const total=leads.length; // total = abordados (todo novo lead GO é considerado abordado)
   const nResp=useEvt
     ?leads.filter(k=>_hadEvtGO(k,_ALL_GO_RESP_IDS,from,to)).length
-    :leads.filter(_goIsResp).length;
+    :leads.filter(_hasEverRespGO).length;
   const nAgend=useEvt
     ?leads.filter(k=>_hadEvtGO(k,CLOSER_AGENDADO_IDS,from,to)).length
     :leads.filter(stIsAgend).length;
@@ -1601,7 +1608,7 @@ function lmOpenGOTotal(){ if(_goContext)openLeadsModal('Total Leads GO',_goConte
 function lmOpenGOAbordados(){ if(_goContext)openLeadsModal('Abordados GO',_goContext.map(goLeadRow)); }
 function lmOpenGORespostas(){
   if(!_goContext) return;
-  const fn=_goUseEvt?k=>_hadEvtGO(k,_ALL_GO_RESP_IDS,_goFrom,_goTo):_goIsResp;
+  const fn=_goUseEvt?k=>_hadEvtGO(k,_ALL_GO_RESP_IDS,_goFrom,_goTo):_hasEverRespGO;
   openLeadsModal('Respostas GO',_goContext.filter(fn).map(goLeadRow));
 }
 function lmOpenGOAgend(){
@@ -1633,7 +1640,7 @@ function lmOpenGODay(el){
     return ts&&new Date(ts*1000).toISOString().slice(0,10)===day;
   });
   const filtersEvt={total:()=>true,ab:()=>true,resp:k=>_hadEvtGO(k,_ALL_GO_RESP_IDS,day,day),agend:k=>_hadEvtGO(k,CLOSER_AGENDADO_IDS,day,day),r1:k=>_hadEvtGO(k,R1_REALIZADA_IDS,day,day),r2:k=>_hadEvtGO(k,R2_REALIZADA_IDS,day,day),vn:k=>_hadEvtGO(k,VENDAS_IDS,day,day)};
-  const filtersCur={total:()=>true,ab:()=>true,resp:_goIsResp,agend:stIsAgend,r1:stIsR1,r2:stIsR2R,vn:stIsVenda};
+  const filtersCur={total:()=>true,ab:()=>true,resp:_hasEverRespGO,agend:stIsAgend,r1:stIsR1,r2:stIsR2R,vn:stIsVenda};
   const filters=_goUseEvt?filtersEvt:filtersCur;
   const labels={total:'Total',ab:'Abordados',resp:'Respostas',agend:'Agendamentos',r1:'R1 Realizadas',r2:'R2 Realizadas',vn:'Vendas'};
   const fn=filters[metric]||(()=>true);
@@ -1712,7 +1719,7 @@ function renderLeadsGO(){
     .sort((a,b)=>b[1].length-a[1].length)
     .map(([code,ls])=>{
       const tot=ls.length;
-      const resp=KK(ls.filter(_goIsResp).length);
+      const resp=KK(ls.filter(_hasEverRespGO).length);
       const ag=KK(ls.filter(stIsAgend).length);
       const r1n=KK(ls.filter(stIsR1).length);
       const r2n=KK(ls.filter(stIsR2R).length);
@@ -1766,7 +1773,7 @@ function renderLeadsGO(){
     const ls=dayMap[d];
     const tot=ls.length;
     const ab=ls.length; // todos os leads novos GO são abordados
-    const resp=KKd(ls.filter(_goIsResp).length);
+    const resp=KKd(ls.filter(_hasEverRespGO).length);
     const ag=KKd(ls.filter(stIsAgend).length);
     const r1=KKd(ls.filter(stIsR1).length);
     const r2=KKd(ls.filter(stIsR2R).length);
@@ -1833,7 +1840,7 @@ function _renderGOPeriod(tblId,periodType){
     return{key,
       tot:ls.length,
       ab:ls.length, // todos os leads novos GO são abordados
-      resp:KK(ls.filter(_goIsResp).length),
+      resp:KK(ls.filter(_hasEverRespGO).length),
       agend:KK(ls.filter(stIsAgend).length),
       r1:KK(ls.filter(stIsR1).length),
       r2:KK(ls.filter(stIsR2R).length),
