@@ -4507,7 +4507,12 @@ async function connectKommo(){
         entry_ts:lead.created_at||0,
         stage_ts:lead.updated_at||0,
         abordagem_ts:abordagemMap[lead.id]||null,
-        sdr_entry_ts:sdrEntryMap[lead.id]||lead.created_at||0,
+        // Primeira entrada em stage SDR detectada pelo stageHistory (nome do stage)
+        // Fallback: sdrEntryMap do servidor → 0 (sem data = inclui o lead sempre)
+        sdr_entry_ts:(()=>{
+          const ev=stageHistory.find(e=>{const s=(stagesMap[e.status_id]||'').toLowerCase();return s.startsWith('01 sdr')||s.includes('[o] sdr');});
+          return ev?ev.ts:(sdrEntryMap[lead.id]||0);
+        })(),
         data_r1_ts,
         data_r2_ts,
         data_r1:data_r1_ts?new Date(data_r1_ts*1000).toLocaleDateString('pt-BR'):'',
