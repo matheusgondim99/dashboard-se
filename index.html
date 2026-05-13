@@ -736,7 +736,7 @@ tr.lm-detail:hover td{background:rgba(59,130,246,.04)!important}
 const S = { traffic:[], leads:[], metas:[], kommo:[], kommoAll:[], criativos:[], leadsEP:[], metasEP:[], metasGO:[], okrs:[], okrDash:[] };
 let kommoState = 'pending'; // 'pending' | 'connected' | 'error'
 let _kommoSub = ''; // subdomain guardado em memória ao conectar
-const KOMMO_CACHE_KEY = 'se_kommo_data_v7';
+const KOMMO_CACHE_KEY = 'se_kommo_data_v8';
 const KOMMO_CACHE_TTL = 10 * 60 * 1000; // 10 minutos
 let _kommoRefreshInterval = null;
 
@@ -4526,19 +4526,20 @@ async function connectKommo(){
         entry_ts:lead.created_at||0,
         stage_ts:lead.updated_at||0,
         abordagem_ts:abordagemMap[lead.id]||null,
-        // Data em que o lead entrou em "01 SDR - Novo Lead"
-        // 1) evento no stageHistory  2) sdrEntryMap (server)
-        // 3) se está AGORA em Novo Lead → updated_at (o bot acabou de movê-lo)
+        // Data em que o lead entrou em "01 SDR - Novo Lead" (entrada mais RECENTE)
+        // Leads reentram em "Novo Lead" via SalesBot — usar o mais recente, não o mais antigo
+        // 1) sdrEntryMap do servidor — já rastreia a entrada mais recente com filtro de pipeline
+        // 2) Evento mais RECENTE de "Novo Lead" no stageHistory (array ordenado asc → pega o último)
+        // 3) Se está AGORA em Novo Lead → updated_at (o bot acabou de movê-lo)
         // 4) created_at como último recurso
         sdr_entry_ts:(()=>{
-          // 1) Evento exato de mudança de stage para "Novo Lead" no stageHistory
-          const ev=stageHistory.find(e=>{const s=(stagesMap[e.status_id]||'').toLowerCase();return s.includes('novo lead');});
-          if(ev) return ev.ts;
-          // 2) sdrEntryMap vindo do servidor (batch de eventos da API)
+          // 1) sdrEntryMap do servidor — confiável, usa evento mais recente
           if(sdrEntryMap[lead.id]) return sdrEntryMap[lead.id];
+          // 2) Mais RECENTE evento "Novo Lead" no stageHistory (reversed — mais novo primeiro)
+          // IMPORTANTE: não usar find() — retornaria o mais ANTIGO (outros pipelines também têm "Novo Lead")
+          const novoLeadEvs=stageHistory.filter(e=>(stagesMap[e.status_id]||'').toLowerCase().includes('novo lead'));
+          if(novoLeadEvs.length) return novoLeadEvs[novoLeadEvs.length-1].ts;
           // 3) Lead está AGORA na etapa "01 SDR - Novo Lead" → usa updated_at
-          // Só aplica para a etapa INICIAL (novo lead), não para etapas avançadas como "em atendimento"
-          // updated_at pode ser de hoje mesmo para leads antigos (bot envia mensagem e atualiza o campo)
           const curSn=(stagesMap[lead.status_id]||'').toLowerCase();
           if(Number(lead.pipeline_id)===SDR_PIPELINE_ID && curSn.includes('novo lead')) {
             return lead.updated_at||lead.created_at||0;
