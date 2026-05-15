@@ -3965,7 +3965,7 @@ function renderDayTable(tid,trafficRows,leadsRows,kommoLeads){
   const zb=v=>v>0?brl(v):'—'; const zp=v=>v>0?pct(v):'—';
   const kmHd=kommoOk?th('Resp.')+th('% Resp.')+th('SQL')+th('Não SQL')+th('% SQL')+th('C/SQL')+th('Agend.')+th('R1')+th('% R1')+th('Custo R1')+th('R2 Marc.')+th('R2 Real.')+th('% R2')+th('Vendas')+th('% Conv.')+th('Faturamento')+th('CAC')+th('MRR'):'';
   document.getElementById(tid).innerHTML=`<table class="dt"><thead><tr>
-    ${th('Dia')}${th('Invest.')}${th('Impressões')}${th('Cliques')}${th('CPM')}${th('CTR')}${th('T.Gancho')}${th('CPC')}
+    ${th('Dia')}${th('Invest.')}${th('Impressões')}${th('Cliques')}${th('CPM')}${th('CTR')}${th('T.Gancho')}${th('CPC')}${th('T.Preenche')}
     ${th('Leads')}${th('CPL')}${th('MQL')}${th('MQL A')}${th('% Qual.')}${th('Custo MQL')}${th('Custo MQL A')}${kmHd}
   </tr></thead><tbody>${days.map(iso=>{
     const g=byDay[iso];
@@ -3995,6 +3995,7 @@ function renderDayTable(tid,trafficRows,leadsRows,kommoLeads){
       <td class="td-name-click" style="white-space:nowrap;text-align:left" data-dim-type="dia" data-dim-key="${iso}" data-dim-label="${fmtDay(iso)}" onclick="p5SetFilter(this)">${fmtDay(iso)}</td>
       <td>${brl(inv)}</td><td>${nn(imp)}</td><td>${nn(cli)}</td>
       <td>${zb(cpm)}</td><td>${zp(ctr)}</td><td>${zp(gancho)}</td><td>${zb(cpc)}</td>
+      <td>${zp(cli>0?lds/cli*100:0)}</td>
       ${tc(iso,'leads',nn(lds))}<td>${lds>0?brl(inv/lds):'—'}</td>
       ${tc(iso,'mql',nn(mql))}${tc(iso,'mqla',nn(mqla))}
       <td>${zp(lds>0?mql/lds*100:0)}</td><td>${mql>0?brl(inv/mql):'—'}</td><td>${mqla>0?brl(inv/mqla):'—'}</td>
@@ -4041,7 +4042,7 @@ function renderWeekTable(tid,trafficRows,leadsRows,kommoLeads){
   const zb=v=>v>0?brl(v):'—'; const zp=v=>v>0?pct(v):'—';
   const kmHd=kommoOk?th('Resp.')+th('% Resp.')+th('SQL')+th('Não SQL')+th('% SQL')+th('C/SQL')+th('Agend.')+th('R1')+th('% R1')+th('Custo R1')+th('R2 Marc.')+th('R2 Real.')+th('% R2')+th('Vendas')+th('% Conv.')+th('Faturamento')+th('CAC')+th('MRR'):'';
   document.getElementById(tid).innerHTML=`<table class="dt"><thead><tr>
-    ${th('Semana')}${th('Invest.')}${th('Impressões')}${th('Cliques')}${th('CPM')}${th('CTR')}${th('T.Gancho')}${th('CPC')}
+    ${th('Semana')}${th('Invest.')}${th('Impressões')}${th('Cliques')}${th('CPM')}${th('CTR')}${th('T.Gancho')}${th('CPC')}${th('T.Preenche')}
     ${th('Leads')}${th('CPL')}${th('MQL')}${th('MQL A')}${th('% Qual.')}${th('Custo MQL')}${th('Custo MQL A')}${kmHd}
   </tr></thead><tbody>${weeks.map(wk=>{
     const g=byWeek[wk];
@@ -4071,6 +4072,7 @@ function renderWeekTable(tid,trafficRows,leadsRows,kommoLeads){
       <td style="white-space:nowrap;text-align:left">${g.label}</td>
       <td>${brl(inv)}</td><td>${nn(imp)}</td><td>${nn(cli)}</td>
       <td>${zb(cpm)}</td><td>${zp(ctr)}</td><td>${zp(gancho)}</td><td>${zb(cpc)}</td>
+      <td>${zp(cli>0?lds/cli*100:0)}</td>
       ${tc(wk,'leads',nn(lds))}<td>${lds>0?brl(inv/lds):'—'}</td>
       ${tc(wk,'mql',nn(mql))}<td>${nn(mqla)}</td>
       <td>${zp(lds>0?mql/lds*100:0)}</td><td>${mql>0?brl(inv/mql):'—'}</td><td>${mqla>0?brl(inv/mqla):'—'}</td>
@@ -4138,12 +4140,31 @@ function renderDimTable(tid,cid,trafficRows,leadsRows,kommoLeads,trafField,statu
   const dimType=utmField==='utm_campaign'?'campanha':utmField==='utm_content'?'publico':'criativo';
   const kommoFld=utmField==='utm_campaign'?'utm_campaign':utmField==='utm_content'?'utm_content':utmField==='utm_medium'?'utm_medium':null;
   const kommoOk=S.kommo.length>0&&kommoState!=='error';
+  // Pré-computa byPhone/byEmail para matching de Kommo por telefone (UTM fields no Kommo são raramente preenchidos)
+  const _dimByPhone={}, _dimByEmail={};
+  if(kommoOk){
+    kommoLeads.forEach(l=>{
+      const p=normPhone(l.phone_digits||l.phone||'');if(p&&!_dimByPhone[p])_dimByPhone[p]=l;
+      const e=(l.email||'').toLowerCase().trim();if(e&&!_dimByEmail[e])_dimByEmail[e]=l;
+    });
+  }
   const rows=Object.entries(tGroups).map(([name,g])=>{
     const ta=aTraffic(g.rows),inv=ta.investimento,imp=ta.impressoes,cli=ta.cliques,v3s=ta.video3s;
     const gl=leadsRows.filter(r=>(r[utmField]||'').trim()===name);
     const la=aLeads(gl),lds=la.total,mql=la.mql,mqla=la.mqla;
     const link=linkMap[name]||'';
-    const kl=kommoFld&&kommoOk?kommoLeads.filter(k=>(k[kommoFld]||'').trim()===name):[];
+    // Matching Kommo: phone/email dos leads da planilha (UTM no Kommo raramente preenchido)
+    let kl=[];
+    if(kommoFld&&kommoOk){
+      const matchedMap=new Map();
+      gl.forEach(r=>{
+        const p=normPhone(r['Telefone']||'');
+        const e=(r['Email']||r['E-mail']||'').toLowerCase().trim();
+        const k=(p&&_dimByPhone[p])||(e&&_dimByEmail[e])||null;
+        if(k&&!matchedMap.has(k.id)) matchedMap.set(k.id,k);
+      });
+      kl=[...matchedMap.values()];
+    }
     const resp=kl.filter(k=>SDR_RESPONDEU_IDS.has(k.status_id)||k.pipeline_id===CLOSER_PIPELINE_ID).length;
     const sqlK=kl.filter(k=>(k.sql||'').trim().toLowerCase()==='sim').length;
     const naoSqlK=kl.length-sqlK;
@@ -4161,7 +4182,7 @@ function renderDimTable(tid,cid,trafficRows,leadsRows,kommoLeads,trafField,statu
   const linkCol=showLink?th('Link'):'';
   const kmHd=kommoFld&&kommoOk?th('Resp.')+th('% Resp.')+th('SQL')+th('Não SQL')+th('% SQL')+th('C/SQL')+th('Agend.')+th('R1')+th('% R1')+th('Custo R1')+th('R2 Marc.')+th('R2 Real.')+th('% R2')+th('Custo R2')+th('Vendas')+th('% Conv.')+th('Faturamento')+th('CAC')+th('MRR'):'';
   document.getElementById(tid).innerHTML=`<table class="dt"><thead><tr>
-    <th class="dim-th-name" onclick="dtSort(this)">Nome</th>${linkCol}${th('Invest.')}${th('Impressões')}${th('Cliques')}${th('CPM')}${th('CTR')}${th('T.Gancho')}${th('CPC')}
+    <th class="dim-th-name" onclick="dtSort(this)">Nome</th>${linkCol}${th('Invest.')}${th('Impressões')}${th('Cliques')}${th('CPM')}${th('CTR')}${th('T.Gancho')}${th('CPC')}${th('T.Preenche')}
     ${th('Leads')}${th('CPL')}${th('MQL')}${th('MQL A')}${th('% Qual.')}${th('Custo MQL')}${th('Custo MQL A')}
     ${kmHd}${th('Status')}
   </tr></thead><tbody>${rows.map(r=>{
@@ -4182,6 +4203,7 @@ function renderDimTable(tid,cid,trafficRows,leadsRows,kommoLeads,trafField,statu
       <td class="td-name-click dim-name-cell" title="${r.name}" data-dim-type="${dimType}" data-dim-key="${esc}" data-dim-label="${esc}" onclick="${nameFn}(this)">${r.name}<span class="dim-copy-btn" data-copy="${esc}" onclick="event.stopPropagation();copyDimName(this)">⎘</span></td>
       ${linkCell}<td>${brl(r.inv)}</td><td>${nn(r.imp)}</td><td>${nn(r.cli)}</td>
       <td>${zb(cpm)}</td><td>${zp(ctr)}</td><td>${zp(gancho)}</td><td>${zb(cpc)}</td>
+      <td>${zp(r.cli>0?r.lds/r.cli*100:0)}</td>
       <td class="td-click" data-utm="${utmField}" data-name="${esc}" onclick="lmOpenDimLeads(this)">${nn(r.lds)}</td>
       <td>${r.lds>0?brl(r.inv/r.lds):'—'}</td>
       <td class="td-click" data-utm="${utmField}" data-name="${esc}" onclick="lmOpenDimMql(this)">${nn(r.mql)}</td>
